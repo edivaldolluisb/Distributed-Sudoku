@@ -1,10 +1,13 @@
 import time
 from collections import deque
+from http.server import HTTPServer, BaseHTTPRequestHandler 
 
 class Sudoku:
     def __init__(self, sudoku):
         self.grid = sudoku
         self.recent_requests = deque()
+
+        # http setting
 
 
     def __str__(self):
@@ -53,25 +56,33 @@ class Sudoku:
                     return False
 
         return True
+    
+
+    def accept(Self):
+        pass
 
 
-if __name__ == "__main__":
+    def loop(self):
+        pass
 
-    sudoku = Sudoku([
-        [0,0,0,1,0,0,0,0,0],
-        [0,0,0,3,2,0,0,0,0],
-        [0,0,0,0,0,9,0,0,0],
-        [0,0,0,0,0,0,0,7,0],
-        [0,0,0,0,0,0,0,0,0],
-        [0,0,0,9,0,0,0,0,0],
-        [0,0,0,0,0,0,9,0,0],
-        [0,0,0,0,0,0,0,0,3],
-        [0,0,0,0,0,0,0,0,0]
-    ])
 
-    print(sudoku)
+# if __name__ == "__main__":
 
-    if sudoku.check():
-        print("Sudoku is correct!")
-    else:
-        print("Sudoku is incorrect! Please check your solution.")
+#     sudoku = Sudoku([
+#         [0,0,0,1,0,0,0,0,0],
+#         [0,0,0,3,2,0,0,0,0],
+#         [0,0,0,0,0,9,0,0,0],
+#         [0,0,0,0,0,0,0,7,0],
+#         [0,0,0,0,0,0,0,0,0],
+#         [0,0,0,9,0,0,0,0,0],
+#         [0,0,0,0,0,0,9,0,0],
+#         [0,0,0,0,0,0,0,0,3],
+#         [0,0,0,0,0,0,0,0,0]
+#     ])
+
+#     print(sudoku)
+
+#     if sudoku.check():
+#         print("Sudoku is correct!")
+#     else:
+#         print("Sudoku is incorrect! Please check your solution.")
