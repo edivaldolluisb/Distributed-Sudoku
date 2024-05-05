@@ -1,0 +1,1 @@
+cada node vai resolver um puzzle por vez ?

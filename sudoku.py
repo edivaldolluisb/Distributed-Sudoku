@@ -1,6 +1,5 @@
 import time
 from collections import deque
-from http.server import HTTPServer, BaseHTTPRequestHandler 
 
 class Sudoku:
     def __init__(self, sudoku):
@@ -57,13 +56,6 @@ class Sudoku:
 
         return True
     
-
-    def accept(Self):
-        pass
-
-
-    def loop(self):
-        pass
 
 
 # if __name__ == "__main__":
