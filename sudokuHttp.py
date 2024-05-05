@@ -39,8 +39,8 @@ class sudokuHTTP(BaseHTTPRequestHandler):
         
     
 
-server = HTTPServer(('localhost', 8080), sudokuHTTP)
-print('Server running ...')
-server.serve_forever()
-server.server_close()
-print('Server stopped.')
+# server = HTTPServer(('localhost', 8080), sudokuHTTP)
+# print('Server running ...')
+# server.serve_forever()
+# server.server_close()
+# print('Server stopped.')
