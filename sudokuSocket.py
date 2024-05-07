@@ -7,6 +7,7 @@ import signal
 import threading
 
 from sudokuHttp import sudokuHTTP
+from sudokuHttp import CustomSudokuHTTP
 from http.server import HTTPServer
 
 class Server:
@@ -29,7 +30,7 @@ class Server:
         self.sel.register(self.sock, selectors.EVENT_READ, self.accept)
 
         # http server
-        self.http_server = HTTPServer(('localhost', 8080), sudokuHTTP)
+        self.http_server = HTTPServer(('localhost', 8080), lambda *args, **kwargs: CustomSudokuHTTP(self.sudoku_received, *args, **kwargs))
   
 
 
@@ -58,6 +59,16 @@ class Server:
             print(f'Erro ao ler os dados: {e}')
             self.shutdown(signal.SIGINT, None)
             sys.exit(1)
+
+
+
+
+    def sudoku_received(self, sudoku):
+        """processar o sudoku recibido por http"""
+        print(f"Recebido sudoku: {sudoku} server")
+        pass
+
+        
 
 
 
