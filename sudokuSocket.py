@@ -10,6 +10,8 @@ from sudokuHttp import sudokuHTTP
 from sudokuHttp import CustomSudokuHTTP
 from http.server import HTTPServer
 
+from sudoku import Sudoku
+
 class Server:
     """Chat Server process."""
 
@@ -66,11 +68,11 @@ class Server:
     def sudoku_received(self, sudoku):
         """processar o sudoku recibido por http"""
         print(f"Recebido sudoku: {sudoku} server")
-        pass
-
+        # print(sudoku.solve_sudoku(sudoku.puzzle()))
+        sudoku_puzzle = Sudoku(sudoku)
+        sudoku_puzzle.solve_sudoku(sudoku['sudoku'])
+        return sudoku_puzzle.puzzle()
         
-
-
 
     def shutdown(self, signum, frame):
         """Shutdown server."""

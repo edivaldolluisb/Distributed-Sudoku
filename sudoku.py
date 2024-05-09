@@ -1,7 +1,8 @@
 import time
 from collections import deque
-from pprint import pprint
 import time
+# from pprint import pprint
+
 
 
 class Sudoku:
@@ -106,7 +107,7 @@ class Sudoku:
                 puzzle[row][col] = guess
 
                 if self.solve_sudoku(puzzle):
-                    print('achou', guess, row, col)
+                    # print('achou', guess, row, col)
                     return True
 
             puzzle[row][col] = 0

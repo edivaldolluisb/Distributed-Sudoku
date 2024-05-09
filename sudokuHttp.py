@@ -1,6 +1,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import time
+from sudoku import Sudoku
 
 
 class sudokuHTTP(BaseHTTPRequestHandler):
@@ -14,12 +15,14 @@ class sudokuHTTP(BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             sudoku = json.loads(post_data)
-            print(sudoku)
-            self.callback(sudoku) # chamar o callback
+            # print(sudoku)
+            # self.callback(sudoku) # chamar o callback
+            # receive what comes from the callback
+            solved_sudoku = self.callback(sudoku)
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(sudoku).encode())
+            self.wfile.write(json.dumps(solved_sudoku).encode())
         else:
             self.send_response(404)
             self.send_header('Content-type', 'application/json')
