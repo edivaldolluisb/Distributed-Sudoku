@@ -1,12 +1,13 @@
 import time
 from collections import deque
+from pprint import pprint
+import time
+
 
 class Sudoku:
     def __init__(self, sudoku):
         self.grid = sudoku
         self.recent_requests = deque()
-
-        # http setting
 
 
     def __str__(self):
@@ -55,26 +56,88 @@ class Sudoku:
                     return False
 
         return True
+
+
+    def find_next_empty(self, puzzle):
+        for r in range(9):
+            for c in range(9):
+                if puzzle[r][c] == 0:
+                    return r, c
+        return None, None
+
+
+    def is_valid(self, puzzle, guess, row, col):
+
+        row_vals = puzzle[row]
+        if guess in row_vals:
+            return False
+        
+
+        col_vals = [puzzle[i][col] for i in range(9)]
+        if guess in col_vals:
+            return False
+        
+
+        row_start = (row // 3) * 3
+        col_start = (col // 3) * 3
+
+        for r in range(row_start, row_start + 3):
+            for c in range(col_start, col_start + 3):
+                if puzzle[r][c] == guess:
+                    return False
+                
+        return True
+
+
+    def solve_sudoku(self, puzzle):
+
+        sudoku = Sudoku(puzzle)
+        if sudoku.check():
+            return True
+        
+        row, col = self.find_next_empty(puzzle)
+
+        # if row is None:
+        #     return True
+
+        for guess in range(1, 10):      
+    
+            if self.is_valid(puzzle, guess, row, col):
+                puzzle[row][col] = guess
+
+                if self.solve_sudoku(puzzle):
+                    print('achou', guess, row, col)
+                    return True
+
+            puzzle[row][col] = 0
+
+        return False
     
 
+    def puzzle(self):
+        return self.grid
 
-# if __name__ == "__main__":
 
-#     sudoku = Sudoku([
-#         [0,0,0,1,0,0,0,0,0],
-#         [0,0,0,3,2,0,0,0,0],
-#         [0,0,0,0,0,9,0,0,0],
-#         [0,0,0,0,0,0,0,7,0],
-#         [0,0,0,0,0,0,0,0,0],
-#         [0,0,0,9,0,0,0,0,0],
-#         [0,0,0,0,0,0,9,0,0],
-#         [0,0,0,0,0,0,0,0,3],
-#         [0,0,0,0,0,0,0,0,0]
-#     ])
+if __name__ == "__main__":
 
-#     print(sudoku)
+    sudoku = Sudoku([
+        [0,0,0,1,0,0,0,0,0],
+        [0,0,0,3,2,0,0,0,0],
+        [0,0,0,0,0,9,0,0,0],
+        [0,0,0,0,0,0,0,7,0],
+        [0,0,0,0,0,0,0,0,0],
+        [0,0,0,9,0,0,0,0,0],
+        [0,0,0,0,0,0,9,0,0],
+        [0,0,0,0,0,0,0,0,3],
+        [0,0,0,0,0,0,0,0,0]
+    ])
 
-#     if sudoku.check():
-#         print("Sudoku is correct!")
-#     else:
-#         print("Sudoku is incorrect! Please check your solution.")
+    print(sudoku)
+
+    if sudoku.check():
+        print("Sudoku is correct!")
+    else:
+        print("Sudoku is incorrect! Please check your solution.")
+
+    print(sudoku.solve_sudoku(sudoku.puzzle()))
+    print(sudoku)
