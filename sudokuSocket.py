@@ -45,11 +45,13 @@ class Server:
         conn, addr = sock.accept()  # Should be ready
         conn.setblocking(False)
         self.sel.register(conn, selectors.EVENT_READ, self.read)
+        self.connection.append(conn)
 
         print(f'got a connectio ffrom {conn}')
         # send  my list of connections
-        time.sleep(1)
-        conn.sendall(str(self.connection).encode())
+        # time.sleep(1)
+        # conn.sendall(str(self.connection).encode())
+        conn.sendall(b'Hello from server')
 
     def connect(self):
         """Connect to a peer"""
@@ -77,6 +79,14 @@ class Server:
 
                 self.sel.unregister(conn)
                 conn.close()
+                self.connection.remove(conn)
+
+        except ConnectionResetError:
+            print(f'conexão fechada abrumtamente por {conn.getpeername()}')
+            self.sel.unregister(conn)
+            conn.close()
+            self.connection.remove(conn)
+
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
             self.shutdown(signal.SIGINT, None)
@@ -94,9 +104,13 @@ class Server:
         """Shutdown server."""
 
         print("Server is shutting down.")
+        # fechar conexões com outros nodes
+        for conn in self.connection:
+            self.sel.unregister(conn)
+            conn.close()
 
-        self.sel.unregister(self.sock)
-        self.sock.close()
+        # self.sel.unregister(self.sock)
+        # self.sock.close()
         self.http_server.server_close() # fechar o servidor http
         print("Server fechado.")
         sys.exit(0)
