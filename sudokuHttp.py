@@ -1,3 +1,4 @@
+""" Sudoku HTTP Server"""
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import time
@@ -19,10 +20,13 @@ class sudokuHTTP(BaseHTTPRequestHandler):
             # self.callback(sudoku) # chamar o callback
             # receive what comes from the callback
             solved_sudoku = self.callback(sudoku)
+            # build a json response
+            response = {'solved': True, 'sudoku': solved_sudoku}
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(solved_sudoku).encode())
+            self.wfile.write(json.dumps(response).encode())
         else:
             self.send_response(404)
             self.send_header('Content-type', 'application/json')

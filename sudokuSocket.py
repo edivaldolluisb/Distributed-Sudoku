@@ -26,7 +26,7 @@ class Server:
         self.sock = socket.socket()
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self._host, self._port))
-        self.sock.listen(100)
+        self.sock.listen(50)
         self.sock.setblocking(False)
 
         self.sel.register(self.sock, selectors.EVENT_READ, self.accept)
