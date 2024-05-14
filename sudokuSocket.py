@@ -3,7 +3,7 @@ import selectors
 import socket
 import sys
 import signal
-
+import time
 import threading
 
 from sudokuHttp import sudokuHTTP
@@ -15,24 +15,26 @@ from sudoku import Sudoku
 class Server:
     """Chat Server process."""
 
-    def __init__(self):
+    def __init__(self, host="", port=5000, httpport=8000, connect_port: tuple = None):
         """Initialize server with host and port."""
         self.sel = selectors.DefaultSelector()
         
-        self._host = "localhost"
-        self._port = 12363
+        self._host = host
+        self._port = port
+        self.connect_to = connect_port
 
 
         self.sock = socket.socket()
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self._host, self._port))
-        self.sock.listen(50)
         self.sock.setblocking(False)
 
         self.sel.register(self.sock, selectors.EVENT_READ, self.accept)
 
         # http server
-        self.http_server = HTTPServer(('localhost', 8080), lambda *args, **kwargs: CustomSudokuHTTP(self.sudoku_received, *args, **kwargs))
+        self.http_server = HTTPServer(('localhost', httpport), lambda *args, **kwargs: CustomSudokuHTTP(self.sudoku_received, *args, **kwargs))
+
+        # connection data
+        self.connection = []
   
 
 
@@ -40,6 +42,23 @@ class Server:
         conn, addr = sock.accept()  # Should be ready
         conn.setblocking(False)
         self.sel.register(conn, selectors.EVENT_READ, self.read)
+
+        print(f'got a connectio ffrom {conn}')
+        conn.send
+
+
+    def connect(self):
+        """Connect to a peer"""
+        try:
+            connection = socket.create_connection(self.connect_to)
+            self.connection.append(connection)
+
+            print(f'connected to :{connection}')
+
+            # send a wellcome message to the other node
+
+        except:
+            print('problema ao conectar!')
 
 
 
@@ -86,8 +105,22 @@ class Server:
         sys.exit(0)   
 
 
+    def listen(self):
+        """Listen for incoming connections."""
+        self.sock.bind((self._host, self._port))
+        self.sock.listen(50)
+        print(f"Listening on {self._host}:{self._port}")
+
+
     def loop(self):
         """Loop indefinetely."""
+        listener_thread = threading.Thread(target=self.listen)
+        listener_thread.start()
+
+        if self.connect_to is not None:
+            time.sleep(2)
+            self.connect()
+
         try:
             print('Sudoku server running ...')
             server_http_thread = threading.Thread(target=self.http_server.serve_forever)
@@ -104,5 +137,6 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server()
-    server.loop()
+    # self, host="localhost", port=5000, httpport=8000, connect_port: Tuple = None
+    node = Server()
+    node.loop()
