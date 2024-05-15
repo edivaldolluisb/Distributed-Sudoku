@@ -12,6 +12,8 @@ from http.server import HTTPServer
 
 from sudoku import Sudoku
 
+import json
+
 class Server:
     """Chat Server process."""
 
@@ -37,7 +39,8 @@ class Server:
         self.http_server = HTTPServer(('localhost', httpport), lambda *args, **kwargs: CustomSudokuHTTP(self.sudoku_received, *args, **kwargs))
 
         # connection data
-        self.connection = [self.sock]
+        self.connection = {self.sock}
+        self.bind_connections = {}
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -45,23 +48,34 @@ class Server:
         conn, addr = sock.accept()  # Should be ready
         conn.setblocking(False)
         self.sel.register(conn, selectors.EVENT_READ, self.read)
-        self.connection.append(conn)
+        self.connection.add(conn)
+        # print(f'address: {addr}')
 
         print(f'got a connectio ffrom {conn}')
-        # send  my list of connections
-        # time.sleep(1)
-        # conn.sendall(str(self.connection).encode())
-        conn.sendall(b'Hello from server')
+        # send  my list of connections address
+
+        # join_message = {"command":"join_reply", "connections": [c.getpeername() for c in self.connection]}
+        # conn.sendall(json.dumps(join_message).encode())
+        print(conn.getpeername())
+        # conn.sendall(b'Hello from server')
 
     def connect(self):
         """Connect to a peer"""
         try:
             connection = socket.create_connection(self.connect_to)
-            self.connection.append(connection)
+            self.connection.add(connection)
 
             print(f'connected to :{connection}')
             connection.setblocking(False)
             self.sel.register(connection, selectors.EVENT_READ, self.read)
+
+            # create a bind point in the bind connections variable
+            self.bind_connections[connection.getpeername()] = connection.getpeername()
+
+            # send my join message
+            mybind = f"{self._host}:{self._port}"
+            join_message = {"command":"join", "bindPoint": mybind}
+            connection.sendall(json.dumps(join_message).encode())
 
         except Exception as e:
             print(f'problema ao conectar!. Error : {e}')
@@ -72,6 +86,43 @@ class Server:
             data = conn.recv(1024)
 
             if data:
+                try:
+                    message = json.loads(data.decode())
+                    print(f"Received message: {message}")
+
+                    if message['command'] == 'join':
+                        # add the connection to the bind connections
+                        host, port = message['bindPoint'].split(':')
+                        addr = (host, int(port))
+                        self.bind_connections[conn.getpeername()] = addr
+
+                        # send the list of bind connections values 
+                        bind_points = list(self.bind_connections.values())
+                        join_reply = {"command": "join_reply", "bindPoints": bind_points}
+                        conn.sendall(json.dumps(join_reply).encode())
+
+                        # imprime a lista de conexões atualizada
+                        print(f'bind connections: {self.bind_connections}')
+
+                    elif message['command'] == 'join_reply':
+                        print(f'received points: {message["bindPoints"]}')
+                        print(f'my bind points: {self.bind_connections}')
+
+                        # connect to the other nodes
+                        # for bind_point in message['bindPoints']:
+                        #         host, port = bind_point.split(':')
+                        #         addr = (host, int(port))
+                        #         # check if it is not me and the the one who is sending the message
+                        #         if addr != (self._host, self._port) and addr != conn.getpeername():
+                        #             self.connect_to = addr
+                        #             self.connect()
+                        # print(f'my bind points: {self.bind_connections}')
+
+
+                except json.JSONDecodeError as e:
+                    print(f"Erro ao decodificar a mensagem JSON: {e}")
+
+
                 print('mesg: ', data.decode())
 
             else:
@@ -140,7 +191,6 @@ class Server:
 
             while True:
                 events = self.sel.select()
-                print('after select', events[0])
                 for key, mask in events:
                     callback = key.data
                     callback(key.fileobj, mask)
