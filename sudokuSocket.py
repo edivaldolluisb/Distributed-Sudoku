@@ -41,6 +41,7 @@ class Server:
         # connection data
         self.connection = {self.sock}
         self.bind_connections = {}
+        self.ports={}
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -49,32 +50,29 @@ class Server:
         conn.setblocking(False)
         self.sel.register(conn, selectors.EVENT_READ, self.read)
         self.connection.add(conn)
-        # print(f'address: {addr}')
+        
 
-        print(f'got a connectio ffrom {conn}')
-        # send  my list of connections address
+        print(f'this node got a new connection')
+        # print(f'this node connections: {self.bind_connections}')
 
-        # join_message = {"command":"join_reply", "connections": [c.getpeername() for c in self.connection]}
-        # conn.sendall(json.dumps(join_message).encode())
-        print(conn.getpeername())
         # conn.sendall(b'Hello from server')
 
-    def connect(self):
+    def connect(self, send: bool = True):
         """Connect to a peer"""
         try:
             connection = socket.create_connection(self.connect_to)
             self.connection.add(connection)
 
-            print(f'connected to :{connection}')
+            print(f'this node connected to :{connection.getpeername()}')
             connection.setblocking(False)
             self.sel.register(connection, selectors.EVENT_READ, self.read)
 
             # create a bind point in the bind connections variable
             self.bind_connections[connection.getpeername()] = connection.getpeername()
+            self.ports[connection.getpeername()] = self.connect_to[1]
 
             # send my join message
-            mybind = f"{self._host}:{self._port}"
-            join_message = {"command":"join", "bindPoint": mybind}
+            join_message = {"command":"join", "bindPoint": (self._host, self._port), "reply": send}
             connection.sendall(json.dumps(join_message).encode())
 
         except Exception as e:
@@ -88,42 +86,42 @@ class Server:
             if data:
                 try:
                     message = json.loads(data.decode())
-                    print(f"Received message: {message}")
 
                     if message['command'] == 'join':
                         # add the connection to the bind connections
-                        host, port = message['bindPoint'].split(':')
+                        host, port = message['bindPoint']
                         addr = (host, int(port))
                         self.bind_connections[conn.getpeername()] = addr
+                        self.ports[conn.getpeername()] = port
 
                         # send the list of bind connections values 
-                        bind_points = list(self.bind_connections.values())
-                        join_reply = {"command": "join_reply", "bindPoints": bind_points}
-                        conn.sendall(json.dumps(join_reply).encode())
+                        print(f'reply message: {message['reply']}')
+                        if message['reply']:
+                            bind_points = list(self.bind_connections.values())
+                            join_reply = {"command": "join_reply", "bindPoints": bind_points}
+                            conn.sendall(json.dumps(join_reply).encode())
 
                         # imprime a lista de conexões atualizada
-                        print(f'bind connections: {self.bind_connections}')
+                        print(f'this node connections: {self.bind_connections}')
 
                     elif message['command'] == 'join_reply':
-                        print(f'received points: {message["bindPoints"]}')
-                        print(f'my bind points: {self.bind_connections}')
+                        print(f'received points to connect: {message["bindPoints"]}')
 
                         # connect to the other nodes
-                        # for bind_point in message['bindPoints']:
-                        #         host, port = bind_point.split(':')
-                        #         addr = (host, int(port))
-                        #         # check if it is not me and the the one who is sending the message
-                        #         if addr != (self._host, self._port) and addr != conn.getpeername():
-                        #             self.connect_to = addr
-                        #             self.connect()
-                        # print(f'my bind points: {self.bind_connections}')
+                        for node in message['bindPoints']:
+                            node = tuple(node)
+                            print(f'node: {node}')
+                            print(f'my connections: {self.bind_connections}')
+                            # check if hasn't connected to the node and port yet
+                            if node not in self.bind_connections.values() and node[1] != self._port and node[1] not in self.ports.values():
+                            # if node not in self.bind_connections.values() and node[1] != self._port:
+                                self.connect_to = node
+                                self.connect(False)
 
 
                 except json.JSONDecodeError as e:
                     print(f"Erro ao decodificar a mensagem JSON: {e}")
-
-
-                print('mesg: ', data.decode())
+                    self.shutdown(signal.SIGINT, None)
 
             else:
                 print(f'closing connection for:{conn.getpeername()}')
@@ -131,12 +129,16 @@ class Server:
                 self.sel.unregister(conn)
                 conn.close()
                 self.connection.remove(conn)
+                self.bind_connections.pop(conn.getpeername())
+
 
         except ConnectionResetError:
             print(f'conexão fechada abrumtamente por {conn.getpeername()}')
             self.sel.unregister(conn)
-            conn.close()
+            self.bind_connections.pop(conn.getpeername())
+            print(f'this node connections: {self.bind_connections}')
             self.connection.remove(conn)
+            conn.close()
 
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
