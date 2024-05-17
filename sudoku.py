@@ -1,6 +1,8 @@
 import time
 from collections import deque
 
+from pprint import pprint
+
 
 class Sudoku:
     def __init__(self, sudoku):
@@ -65,7 +67,7 @@ class Sudoku:
         self._limit_calls(base_delay, interval, threshold)
 
         # Check square
-        if sum([self.grid[row+i][col+j] for i in range(3) for j in range(3)]) != 45 or len(set([self.grid[i*3+k][j*3+l] for k in range(3) for l in range(3)])) != 9:
+        if sum([self.grid[row+i][col+j] for i in range(3) for j in range(3)]) != 45 or len(set([self.grid[row+i][col+j] for i in range(3) for j in range(3)])) != 9:
             return False
 
         return True
@@ -105,7 +107,7 @@ class Sudoku:
 
 
     def is_valid(self, puzzle, guess, row, col):
-
+   
         row_vals = puzzle[row]
         if guess in row_vals:
             return False
@@ -125,6 +127,8 @@ class Sudoku:
                     return False
                 
         return True
+    
+
     def solve_sudoku(self, puzzle):
         sudoku = Sudoku(puzzle)
         if sudoku.check():
@@ -169,3 +173,21 @@ if __name__ == "__main__":
         print("Sudoku is correct!")
     else:
         print("Sudoku is incorrect! Please check your solution.")
+
+    example_puzzle = [
+        [0,0,0,1,0,0,0,0,0],
+        [0,0,0,3,2,0,0,0,0],
+        [0,0,0,0,0,9,0,0,0],
+        [0,0,0,0,0,0,0,7,0],
+        [0,0,0,0,0,0,0,0,0],
+        [0,0,0,9,0,0,0,0,0],
+        [0,0,0,0,0,0,9,0,0],
+        [0,0,0,0,0,0,0,0,3],
+        [0,0,0,0,0,0,0,0,0]
+    ]
+
+    sudoku = Sudoku(sudoku)
+    starttime = time.time()
+    pprint(sudoku.solve_sudoku(example_puzzle))
+    print("Time taken: ", time.time() - starttime)
+    pprint(example_puzzle)
