@@ -5,6 +5,7 @@ import sys
 import signal
 import time
 import threading
+import queue
 
 from sudokuHttp import sudokuHTTP
 from sudokuHttp import CustomSudokuHTTP
@@ -43,6 +44,9 @@ class Server:
         self.bind_connections = {}
         self.ports={}
 
+        # queues for messages and sudoku
+        self.mysodoku = queue.Queue()
+
     def accept(self, sock, mask):
         """Accept incoming connections."""
         print("Server is accepting.")
@@ -53,9 +57,6 @@ class Server:
         
 
         print(f'this node got a new connection')
-        # print(f'this node connections: {self.bind_connections}')
-
-        # conn.sendall(b'Hello from server')
 
     def connect(self, send: bool = True):
         """Connect to a peer"""
@@ -118,6 +119,30 @@ class Server:
                                 self.connect_to = node
                                 self.connect(False)
 
+                    elif message['command'] == 'askToSolve':
+                        print(f"Recebido comando de resolução de sudoku: {message}")
+                        print(f"Asking for sudoku to solve")
+                        solve = {"command": "agToSolve"}
+                        conn.sendall(json.dumps(solve).encode())
+                    
+                    elif message['command'] == 'agToSolve':
+                        print(f"Recebido comando de confirmação para resolver")
+                        print(f"enviando sudoku para resolver")
+                        solve = {"command": "solve", "sudoku": self.mysodoku.get()}
+                        conn.sendall(json.dumps(solve).encode())
+
+                    elif message['command'] == 'solve':
+                        print(f"Resolvendo: {message['sudoku']}")
+                        time.sleep(1)
+                        print(f"Resolvido sudoku: {message['sudoku']}")
+                        response = {"command": "solved", "sudoku": message['sudoku']}
+                        conn.sendall(json.dumps(response).encode())
+
+
+                    elif message['command'] == 'solved':
+                        print(f"Recebido sudoku resolvido: {message['sudoku']}")
+                        # self.mysodoku.put(message['sudoku'])
+
 
                 except json.JSONDecodeError as e:
                     print(f"Erro ao decodificar a mensagem JSON: {e}")
@@ -149,9 +174,24 @@ class Server:
         """processar o sudoku recibido por http"""
         print(f"Recebido sudoku: {sudoku} server")
         # print(sudoku.solve_sudoku(sudoku.puzzle()))
-        sudoku_puzzle = Sudoku(sudoku)
-        sudoku_puzzle.solve_sudoku(sudoku['sudoku'])
-        return sudoku_puzzle.puzzle()
+        # sudoku_puzzle = Sudoku(sudoku['sudoku'])
+        # sudoku_puzzle.solve_sudoku(sudoku_puzzle)
+        
+        for i in range(10):
+            self.mysodoku.put(i)
+
+        while not self.mysodoku.empty():
+            print(f"Esperando resolução... {self.mysodoku.qsize()}")
+            print(len(self.connection))
+            
+            if len(self.connection) > 1:
+                for node in self.connection:
+                    if node != self.sock:
+                        solve = {"command": "askToSolve"}
+                        node.send(json.dumps(solve).encode())
+                        time.sleep(0.5)
+
+        return [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     def shutdown(self, signum, frame):
         """Shutdown server."""

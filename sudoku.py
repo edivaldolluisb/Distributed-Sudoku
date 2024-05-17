@@ -92,6 +92,61 @@ class Sudoku:
                     return False
 
         return True
+    
+
+
+    # my functions 
+    def find_next_empty(self, puzzle):
+        for r in range(9):
+            for c in range(9):
+                if puzzle[r][c] == 0:
+                    return r, c
+        return None, None
+
+
+    def is_valid(self, puzzle, guess, row, col):
+
+        row_vals = puzzle[row]
+        if guess in row_vals:
+            return False
+        
+
+        col_vals = [puzzle[i][col] for i in range(9)]
+        if guess in col_vals:
+            return False
+        
+
+        row_start = (row // 3) * 3
+        col_start = (col // 3) * 3
+
+        for r in range(row_start, row_start + 3):
+            for c in range(col_start, col_start + 3):
+                if puzzle[r][c] == guess:
+                    return False
+                
+        return True
+    def solve_sudoku(self, puzzle):
+        sudoku = Sudoku(puzzle)
+        if sudoku.check():
+            return True
+        
+        row, col = self.find_next_empty(puzzle)
+
+        # if row is None:
+        #     return True
+
+        for guess in range(1, 10):      
+
+            if self.is_valid(puzzle, guess, row, col):
+                puzzle[row][col] = guess
+
+                if self.solve_sudoku(puzzle):
+                    print('achou', guess, row, col)
+                    return True
+
+            puzzle[row][col] = 0
+
+        return False 
 
 
 if __name__ == "__main__":
