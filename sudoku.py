@@ -96,6 +96,21 @@ class Sudoku:
         return True
     
 
+    # my function to get sudoku line
+    def get_line(self, row):
+        return self.grid[row]
+    
+
+    def is_complete(self):
+        for row in self.grid:
+            if 0 in row:
+                return False
+        return True
+    
+
+    # check if a line is valid
+    def is_valid_line(self, line):
+        return sum(line) == 45 and len(set(line)) == 9
 
     # my functions 
     def find_next_empty(self, puzzle):
@@ -126,6 +141,32 @@ class Sudoku:
                 if puzzle[r][c] == guess:
                     return False
                 
+        return True
+    
+
+    def solve_line(self, sudoku, row, col):
+        """
+        Solves a line of the Sudoku puzzle starting from the specified row and column.
+        Args:
+            sudoku (list[list[int]]): The Sudoku grid.
+            row (int): Row index of the cell.
+            col (int): Column index of the cell.
+        Returns:
+            bool: True, grid row if the line is solved, False otherwise.
+        """
+
+        self._limit_calls()
+        
+        
+        for c in range(9):
+            if sudoku[row][c] == 0: 
+                for guess in range(1, 10):
+                    if self.is_valid(sudoku, guess, row, c):
+                        sudoku[row][c] = guess
+                        if self.solve_line(sudoku, row, c):
+                            return True
+                        sudoku[row][c] = 0
+                return False
         return True
     
 
@@ -187,7 +228,24 @@ if __name__ == "__main__":
     ]
 
     sudoku = Sudoku(sudoku)
-    starttime = time.time()
-    pprint(sudoku.solve_sudoku(example_puzzle))
-    print("Time taken: ", time.time() - starttime)
+    # starttime = time.time()
+    # pprint(sudoku.solve_sudoku(example_puzzle))
+    # print("Time taken: ", time.time() - starttime)
+    # pprint(example_puzzle)
+
+    pprint(sudoku.solve_line(example_puzzle, 0, 0))
+    pprint(sudoku.solve_line(example_puzzle, 1, 0))
     pprint(example_puzzle)
+    pprint(sudoku.solve_line(example_puzzle, 2, 0))
+    pprint(example_puzzle)
+    pprint(sudoku.solve_line(example_puzzle, 3, 0))
+    pprint(example_puzzle)
+    pprint(sudoku.solve_line(example_puzzle, 4, 0))
+    pprint(example_puzzle)
+    pprint(sudoku.solve_line(example_puzzle, 5, 0))
+    pprint(example_puzzle)
+    pprint(sudoku.solve_line(example_puzzle, 6, 0))
+    pprint(sudoku.solve_line(example_puzzle, 7, 0))
+    pprint(sudoku.solve_line(example_puzzle, 8, 0))
+    pprint(example_puzzle)
+

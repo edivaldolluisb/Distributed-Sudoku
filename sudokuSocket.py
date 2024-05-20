@@ -6,6 +6,7 @@ import signal
 import time
 import threading
 import queue
+import pprint
 
 from sudokuHttp import sudokuHTTP
 from sudokuHttp import CustomSudokuHTTP
@@ -45,7 +46,8 @@ class Server:
         self.ports={}
 
         # queues for messages and sudoku
-        self.mysodoku = queue.Queue()
+        self.mySodokuGrid = Sudoku([])
+        self.mySodokuQueue = queue.Queue()
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -87,6 +89,7 @@ class Server:
             if data:
                 try:
                     message = json.loads(data.decode())
+                    print(f'received message: {message}')
 
                     if message['command'] == 'join':
                         # add the connection to the bind connections
@@ -96,11 +99,11 @@ class Server:
                         self.ports[conn.getpeername()] = port
 
                         # send the list of bind connections values 
-                        print(f'reply message: {message['reply']}')
+                        print(f"reply message: {message['reply']}")
                         if message['reply']:
                             bind_points = list(self.bind_connections.values())
                             join_reply = {"command": "join_reply", "bindPoints": bind_points}
-                            conn.sendall(json.dumps(join_reply).encode())
+                            conn.send(json.dumps(join_reply).encode())
 
                         # imprime a lista de conexões atualizada
                         print(f'this node connections: {self.bind_connections}')
@@ -123,25 +126,40 @@ class Server:
                         print(f"Recebido comando de resolução de sudoku: {message}")
                         print(f"Asking for sudoku to solve")
                         solve = {"command": "agToSolve"}
-                        conn.sendall(json.dumps(solve).encode())
+                        conn.send(json.dumps(solve).encode())
                     
                     elif message['command'] == 'agToSolve':
                         print(f"Recebido comando de confirmação para resolver")
                         print(f"enviando sudoku para resolver")
-                        solve = {"command": "solve", "sudoku": self.mysodoku.get()}
-                        conn.sendall(json.dumps(solve).encode())
+
+                        print(list(self.mySodokuQueue.queue))
+                        solve = {"command": "solve", "sudoku": (self.mySodokuQueue.get(), self.mySodokuGrid.grid)}
+                        conn.send(json.dumps(solve).encode())
 
                     elif message['command'] == 'solve':
                         print(f"Resolvendo: {message['sudoku']}")
-                        time.sleep(1)
-                        print(f"Resolvido sudoku: {message['sudoku']}")
-                        response = {"command": "solved", "sudoku": message['sudoku']}
-                        conn.sendall(json.dumps(response).encode())
+                        sudokuTask = message['sudoku'][1]
+                        line = message['sudoku'][0]
+
+                        solving = Sudoku(sudokuTask).solve_line(sudokuTask ,line, 0)
+                        
+                        # time.sleep(1)
+                        print(f"Resolvido sudoku: {sudokuTask[line]}")
+                        response = {"command": "solved", "sudoku": (line, sudokuTask[line])}
+                        conn.send(json.dumps(response).encode())
 
 
                     elif message['command'] == 'solved':
-                        print(f"Recebido sudoku resolvido: {message['sudoku']}")
-                        # self.mysodoku.put(message['sudoku'])
+                        print(f"Recebido linha resolvida: {message['sudoku']}")
+                        solved_line = message['sudoku']
+                        self.mySodokuGrid.update_row(int(solved_line[0]), solved_line[1])
+                        
+                        # check if there is remaning tasks to solve
+                        if not self.mySodokuQueue.empty():
+                            print(f"Enviando sudoku para resolver")
+                            print(list(self.mySodokuQueue.queue))
+                            solve = {"command": "solve", "sudoku": (self.mySodokuQueue.get(), self.mySodokuGrid.grid)}
+                            conn.send(json.dumps(solve).encode())
 
 
                 except json.JSONDecodeError as e:
@@ -173,25 +191,66 @@ class Server:
     def sudoku_received(self, sudoku):
         """processar o sudoku recibido por http"""
         print(f"Recebido sudoku: {sudoku} server")
-        # print(sudoku.solve_sudoku(sudoku.puzzle()))
-        # sudoku_puzzle = Sudoku(sudoku['sudoku'])
-        # sudoku_puzzle.solve_sudoku(sudoku_puzzle)
+        sudokuToSolve = sudoku['sudoku']
+        self.mySodokuGrid = Sudoku(sudokuToSolve)
         
-        for i in range(10):
-            self.mysodoku.put(i)
-
-        while not self.mysodoku.empty():
-            print(f"Esperando resolução... {self.mysodoku.qsize()}")
-            print(len(self.connection))
+        for i in range(3):
             
-            if len(self.connection) > 1:
-                for node in self.connection:
-                    if node != self.sock:
-                        solve = {"command": "askToSolve"}
-                        node.send(json.dumps(solve).encode())
-                        time.sleep(0.5)
+            self.mySodokuQueue.put(i)
 
-        return [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        if len(self.connection) > 1:
+            for node in self.connection:
+                if node != self.sock:
+                    solve = {"command": "askToSolve"}
+                    node.send(json.dumps(solve).encode())
+        
+        start_time = time.time()
+        while not self.mySodokuGrid.is_complete():
+            # print(f"Esperando resolução... {self.mySodokuQueue.qsize()}")
+            # print(len(self.connection))
+            time.sleep(1)
+            
+
+        # self.mySodokuGrid.solve_sudoku(self.mySodokuGrid.grid)
+        # self.solve_sudoku(self.mySodokuGrid.grid)
+        
+
+        # clean the queue for this task and
+        self.mySodokuQueue = queue.Queue() 
+        print(f"Tempo de execução: {time.time() - start_time}")
+        # return the solved sudoku
+        return self.mySodokuGrid.grid
+    
+
+    def solve_sudoku(self, puzzle):
+        sudoku = Sudoku(puzzle)
+        if sudoku.check():
+            return True
+        
+        row, col = self.mySodokuGrid.find_next_empty(puzzle)
+
+        # if row is None:
+        #     return True
+
+        for guess in range(1, 10):      
+
+            if self.mySodokuGrid.is_valid(puzzle, guess, row, col):
+                puzzle[row][col] = guess
+
+                if self.solve_sudoku(puzzle):
+                    # print('achou', guess, row, col)
+                    # send a message to the other nodes
+                    for node in self.connection:
+                        if node != self.sock:
+                            solve = {"command": "msg", "sudoku": (row, puzzle)}
+                            node.send(json.dumps(solve).encode())
+                            time.sleep(0.5)
+                    return True
+
+            puzzle[row][col] = 0
+
+        return False 
+
 
     def shutdown(self, signum, frame):
         """Shutdown server."""
@@ -202,27 +261,17 @@ class Server:
             self.sel.unregister(conn)
             conn.close()
 
-        # self.sel.unregister(self.sock)
-        # self.sock.close()
         self.http_server.server_close() # fechar o servidor http
         print("Server fechado.")
         sys.exit(0)
 
-    # def listen(self):
-    #     """Listen for incoming connections."""
-    #     self.sock.bind((self._host, self._port))
-    #     self.sock.listen(50)
-    #     print(f"Listening on {self._host}:{self._port}")
 
     def loop(self):
         """Loop indefinetely."""
-        # Start listening
-        # listener_thread = threading.Thread(target=self.listen)
-        # listener_thread.start()
 
         # connect to another node
         if self.connect_to is not None:
-            time.sleep(1)
+            # time.sleep(1)
             self.connect()
 
         try:
