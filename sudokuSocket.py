@@ -48,10 +48,11 @@ class Server:
         # queues for messages and sudoku
         self.mySodokuGrid = Sudoku([])
         self.mySodokuQueue = queue.Queue()
+        self.solution_found = False
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
-        print("Server is accepting.")
+        print("Server is accepting a new connection.")
         conn, addr = sock.accept()  # Should be ready
         conn.setblocking(False)
         self.sel.register(conn, selectors.EVENT_READ, self.read)
