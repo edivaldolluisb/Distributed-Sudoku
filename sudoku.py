@@ -101,9 +101,20 @@ class Sudoku:
         return self.grid[row]
     
 
+    def get_cell(self, row, col):
+        return self.grid[row][col]
+    
+
+    def get_sudoku(self) -> list[list[int]]:
+        return self.grid
+    
+
     def update_cell(self, row, col, value):
         self.grid[row][col] = value
     
+
+    def update_sudoku(self, new_sudoku):
+        self.grid = new_sudoku
 
     # check if a line is valid
     def is_valid_line(self, line):
@@ -153,15 +164,27 @@ class Sudoku:
         return [i for i in range(1, 10) if i not in row_vals and i not in col_vals and i not in square_vals]    
     
 
-    def generate_puzzles(puzzle, values, r, c):
-        print('values', values)
-        puzzles = []
-        for i in values:
-            new_puzzle = puzzle.copy()
-            new_puzzle[r][c] = i
-            puzzles.append(new_puzzle)
-            print(new_puzzle)
-        return puzzles
+    def generate_puzzles(self):
+        """Generates all possible puzzles according to the possible numbers in each cell"""
+
+        positions = {}
+        for r in range(9):
+            for c in range(9):
+                if self.grid[r][c] == 0:
+                    positions[(r, c)] = self.possible_numbers(self.grid, r, c)
+        
+        possible_puzzles = []
+        # example_puzzle_list = self.get_sudoku()
+        for r in range(9):
+            for c in range(9):
+                if self.grid[r][c] == 0:
+                    for i in positions[(r, c)]:
+                        new_puzzle = self.get_sudoku().copy()
+                        new_puzzle[r][c] = i
+                        possible_puzzles.append(new_puzzle)
+                        # print('-+-'*10)
+                        # pprint(new_puzzle)
+        return possible_puzzles
     
 
     def solve_sudoku(self):

@@ -182,6 +182,26 @@ class Sudoku:
             puzzle[row][col] = 0
 
         return False 
+    
+
+    def gen(self):
+        positions = {}
+        for r in range(9):
+            for c in range(9):
+                if self.grid[r][c] == 0:
+                    positions[(r, c)] = self.possible_numbers(self.grid, r, c)
+        
+        possible_puzzles = []
+        for r in range(9):
+            for c in range(9):
+                if self.grid[r][c] == 0:
+                    for i in positions[(r, c)]:
+                        new_puzzle = example_puzzle_list.copy()
+                        new_puzzle[r][c] = i
+                        possible_puzzles.append(new_puzzle)
+                        print('-+-'*10)
+                        pprint(new_puzzle)
+        return possible_puzzles
 
 
 
@@ -241,25 +261,33 @@ if __name__ == "__main__":
 
     sudoku = Sudoku(example_puzzle_list)
     # fill all the empty cells with possible numbers
-    for r in range(1):
-        for c in range(3):
+    positions = {}
+    for r in range(9):
+        for c in range(9):
             if sudoku.grid[r][c] == 0:
-                sudoku.grid[r][c] = sudoku.possible_numbers(example_puzzle_list, r, c)
+                # sudoku.grid[r][c] = sudoku.possible_numbers(example_puzzle_list, r, c)
+                positions[(r, c)] = sudoku.possible_numbers(example_puzzle_list, r, c)
 
     pprint(sudoku.__str__())
 
     # # - Gerar puzzles para cada possibilidade -
-    possible_puzzles = []
-    for r in range(1):
-        # print(possible_puzzles)
-        for c in range(9):
-            if type(example_puzzle_list[r][c]) == list:
-                for i in example_puzzle_list[r][c]:
-                    new_puzzle = example_puzzle_list.copy()
-                    new_puzzle[r][c] = i
-                    possible_puzzles.append(new_puzzle)
-                    print('--'*10)
-                    pprint(new_puzzle)
+    # print(positions)
+    # def gen():
+    #     possible_puzzles = []
+    #     for r in range(9):
+    #         # print(possible_puzzles)
+    #         for c in range(9):
+    #             if example_puzzle_list[r][c] == 0:
+    #                 for i in positions[(r, c)]:
+    #                     new_puzzle = example_puzzle_list.copy()
+    #                     new_puzzle[r][c] = i
+    #                     possible_puzzles.append(new_puzzle)
+    #                     print('--'*10)
+    #                     pprint(new_puzzle)
+    #     return possible_puzzles
+    
+    # possible_puzzles = gen()
+    print(len(sudoku.gen()))
 
     # pprint(possible_puzzles)
     # pprint(example_puzzle_list)
