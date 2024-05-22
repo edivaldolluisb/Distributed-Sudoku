@@ -7,6 +7,7 @@ import time
 import threading
 import queue
 import pprint
+from copy import deepcopy
 
 from sudokuHttp import sudokuHTTP
 from sudokuHttp import CustomSudokuHTTP
@@ -49,6 +50,7 @@ class Server:
         self.mySodokuGrid = Sudoku([])
         self.mySodokuQueue = queue.Queue()
         self.solution_found = False
+        self.positions = {}
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -134,33 +136,59 @@ class Server:
                         print(f"enviando sudoku para resolver")
 
                         print(list(self.mySodokuQueue.queue))
-                        solve = {"command": "solve", "sudoku": (self.mySodokuQueue.get(), self.mySodokuGrid.grid)}
+                        solve = {"command": "solve", "sudoku": self.mySodokuQueue.get()}
                         conn.send(json.dumps(solve).encode())
 
                     elif message['command'] == 'solve':
                         print(f"Resolvendo: {message['sudoku']}")
-                        sudokuTask = message['sudoku'][1]
-                        line = message['sudoku'][0]
-
-                        solving = Sudoku(sudokuTask).solve_line(sudokuTask ,line, 0)
+                        sudokuTask = message['sudoku']
+                        sudoku = Sudoku(sudokuTask[1])
+                        sudoku.solve_sudoku()
+                        result = sudoku.check()
                         
-                        # time.sleep(1)
-                        print(f"Resolvido sudoku: {sudokuTask[line]}")
-                        response = {"command": "solved", "sudoku": (line, sudokuTask[line])}
+                        print(f"Resolvido sudoku: {result}, {sudoku.check()}\n {sudoku}")
+                        response = {"command": "solution", "sudoku": (result, sudoku.grid), "cell": (sudokuTask[0][0], sudokuTask[0][1]), "number": sudoku.grid[sudokuTask[0][0]][sudokuTask[0][1]]}
                         conn.send(json.dumps(response).encode())
 
 
-                    elif message['command'] == 'solved':
-                        print(f"Recebido linha resolvida: {message['sudoku']}")
-                        solved_line = message['sudoku']
-                        self.mySodokuGrid.update_row(int(solved_line[0]), solved_line[1])
+                    elif message['command'] == 'solution':
                         
+                        solved = message['sudoku'][0]
+                        print(f"Recebido linha resolvida: {solved}")
+
+                        if solved:
+                            # atualizar o sudoku com a solução
+                            self.mySodokuGrid.grid = message['sudoku'][1]
+                            self.solution_found = True
+                            print(f"Resolução finalizada {solved}")
+                            return
+                        # print(f'queue: {list(self.mySodokuQueue.queue)}, {self.mySodokuQueue.qsize()}')
                         # check if there is remaning tasks to solve
-                        if not self.mySodokuQueue.empty():
+                        if not self.mySodokuQueue.empty() and not self.solution_found:
+
+                            # remover o numero na lista do dicionario de posições
+                            cell = message['cell']
+                            number = message['number']
+                            print(f"cell: {cell}, number: {number}")
+                            if cell in self.positions.keys():
+                                self.positions.pop(cell)
+
                             print(f"Enviando sudoku para resolver")
                             print(list(self.mySodokuQueue.queue))
-                            solve = {"command": "solve", "sudoku": (self.mySodokuQueue.get(), self.mySodokuGrid.grid)}
+                            solve = {"command": "solve", "sudoku": self.mySodokuQueue.get()}
                             conn.send(json.dumps(solve).encode())
+
+                        else:
+                            # solução não encontrada e não há mais tarefas para resolver
+                            # ir para proximo espaço vazio e gerar novos puzzles e enviar para os outros nodes
+                            self.more_puzzles()
+                            print(f"Enviando sudoku para resolver")
+                            print(list(self.mySodokuQueue.queue))
+                            solve = {"command": "solve", "sudoku": self.mySodokuQueue.get()}
+                            conn.send(json.dumps(solve).encode())
+
+
+
 
 
                 except json.JSONDecodeError as e:
@@ -194,10 +222,33 @@ class Server:
         print(f"Recebido sudoku: {sudoku} server")
         sudokuToSolve = sudoku['sudoku']
         self.mySodokuGrid = Sudoku(sudokuToSolve)
+
+        # get all possible numbers for the empty cells
+        for row in range(9):
+            for col in range(9):
+                if self.mySodokuGrid.grid[row][col] == 0:
+                    possible_numbers = self.mySodokuGrid.possible_numbers(self.mySodokuGrid.grid, row, col)
+                    self.positions[(row, col)] = possible_numbers
+
         
-        for i in range(3):
+        next_cell = self.mySodokuGrid.find_next_empty(self.mySodokuGrid.grid)
+        print(f"next cell: {next_cell}")
+        if next_cell != (None, None):
+            # gerar sudoku para resolver
+            _values = self.positions[next_cell]
+            if len(_values) > 1:
+                self.generate_puzzles(self.mySodokuGrid.grid, _values, next_cell[0], next_cell[1])
+            else:
+                self.mySodokuGrid.update_cell(next_cell[0], next_cell[1], _values[0])
+                print(f"Resolvido sudoku: {self.mySodokuGrid.grid}")
+                self.solution_found = True
+
+
+        print(f"Posições: {self.positions}")
+        print(f"queue: {list(self.mySodokuQueue.queue)}, {self.mySodokuQueue.qsize()}")        
+        # for i in range(10):
             
-            self.mySodokuQueue.put(i)
+        #     self.mySodokuQueue.put(i)
 
         if len(self.connection) > 1:
             for node in self.connection:
@@ -206,14 +257,10 @@ class Server:
                     node.send(json.dumps(solve).encode())
         
         start_time = time.time()
-        while not self.mySodokuGrid.is_complete():
-            # print(f"Esperando resolução... {self.mySodokuQueue.qsize()}")
-            # print(len(self.connection))
-            time.sleep(1)
+        while not self.solution_found:
+            print(f"Esperando resolução... {len(self.mySodokuQueue.queue)}")
+            time.sleep(10)
             
-
-        # self.mySodokuGrid.solve_sudoku(self.mySodokuGrid.grid)
-        # self.solve_sudoku(self.mySodokuGrid.grid)
         
 
         # clean the queue for this task and
@@ -223,34 +270,31 @@ class Server:
         return self.mySodokuGrid.grid
     
 
-    def solve_sudoku(self, puzzle):
-        sudoku = Sudoku(puzzle)
-        if sudoku.check():
-            return True
-        
-        row, col = self.mySodokuGrid.find_next_empty(puzzle)
+    def generate_puzzles(self, puzzle, values, r, c):
+        print('values', values)
+        puzzles = []
+        for i in values:
+            new_puzzle = deepcopy(puzzle)
+            new_puzzle[r][c] = i
+            puzzles.append(new_puzzle)
+            self.mySodokuQueue.put(((r, c),new_puzzle))
+            # print(puzzles)
+        # return puzzles
 
-        # if row is None:
-        #     return True
 
-        for guess in range(1, 10):      
-
-            if self.mySodokuGrid.is_valid(puzzle, guess, row, col):
-                puzzle[row][col] = guess
-
-                if self.solve_sudoku(puzzle):
-                    # print('achou', guess, row, col)
-                    # send a message to the other nodes
-                    for node in self.connection:
-                        if node != self.sock:
-                            solve = {"command": "msg", "sudoku": (row, puzzle)}
-                            node.send(json.dumps(solve).encode())
-                            time.sleep(0.5)
-                    return True
-
-            puzzle[row][col] = 0
-
-        return False 
+    def more_puzzles(self):
+        """ver a proxima celula vazia e gerar novos puzzles"""
+        next_cell = self.mySodokuGrid.find_next_empty(self.mySodokuGrid.grid)
+        print(f"next cell: {next_cell}")
+        if next_cell != (None, None):
+            # gerar sudoku para resolver
+            _values = self.positions[next_cell]
+            if len(_values) > 1:
+                self.generate_puzzles(self.mySodokuGrid.grid, _values, next_cell[0], next_cell[1])
+                return
+            else:
+                self.mySodokuGrid.update_cell(next_cell[0], next_cell[1], _values[0])
+                self.more_puzzles()
 
 
     def shutdown(self, signum, frame):

@@ -101,13 +101,12 @@ class Sudoku:
         return self.grid[row]
     
 
-    def update_cell(self, row, col, value):
-        self.grid[row][col] = value
+    def is_complete(self):
+        for row in self.grid:
+            if 0 in row:
+                return False
+        return True
     
-
-    # check if a line is valid
-    def is_valid_line(self, line):
-        return sum(line) == 45 and len(set(line)) == 9
 
     # my functions 
     def find_next_empty(self, puzzle):
@@ -115,6 +114,14 @@ class Sudoku:
             for c in range(9):
                 if puzzle[r][c] == 0:
                     return r, c
+        return None, None
+    
+
+    def find_next_list(self, puzzle):
+        for r in range(9):
+            for c in range(9):
+                if puzzle[r][c] == type(list):
+                    return r, c   
         return None, None
 
 
@@ -139,7 +146,7 @@ class Sudoku:
                     return False
                 
         return True
-
+    
 
     def possible_numbers(self, puzzle, row, col):
         """Returns the possible numbers that can be placed in the given cell."""
@@ -150,43 +157,31 @@ class Sudoku:
         col_start = (col // 3) * 3
         square_vals = [puzzle[row_start + i][col_start + j] for i in range(3) for j in range(3)]
 
-        return [i for i in range(1, 10) if i not in row_vals and i not in col_vals and i not in square_vals]    
+        return [i for i in range(1, 10) if i not in row_vals and i not in col_vals and i not in square_vals]
     
 
-    def generate_puzzles(puzzle, values, r, c):
-        print('values', values)
-        puzzles = []
-        for i in values:
-            new_puzzle = puzzle.copy()
-            new_puzzle[r][c] = i
-            puzzles.append(new_puzzle)
-            print(new_puzzle)
-        return puzzles
-    
-
-    def solve_sudoku(self):
+    def solve_sudoku(self, puzzle):
         # sudoku = Sudoku(puzzle)
-        # if self.check():
+        # if sudoku.check():
         #     return True
         
-        row, col = self.find_next_empty(self.grid)
+        row, col = self.find_next_empty(puzzle)
 
         if row is None:
             return True
 
         for guess in range(1, 10):      
-           
 
-            if self.is_valid(self.grid, guess, row, col):
-                self.grid[row][col] = guess 
+            if self.is_valid(puzzle, guess, row, col):
+                puzzle[row][col] = guess
 
-                if self.solve_sudoku():
-                    # print('achou', guess, row, col)
+                if self.solve_sudoku(puzzle):
+                    print('achou', guess, row, col)
                     return True
-            # print(self.grid)
-            self.grid[row][col] = 0
-        
-        return False
+
+            puzzle[row][col] = 0
+
+        return False 
 
 
 
@@ -194,15 +189,15 @@ class Sudoku:
 if __name__ == "__main__":
 
     sudoku = Sudoku([
-    [2, 3, 4, 1, 5, 6, 7, 8, 9],
-    [1, 7, 9, 3, 2, 8, 4, 5, 6],
-    [5, 6, 8, 4, 7, 9, 1, 3, 2],
-    [3, 9, 1, 2, 4, 5, 6, 7, 8],
-    [4, 2, 5, 6, 8, 7, 3, 9, 1],
-    [6, 8, 7, 9, 1, 3, 2, 4, 5],
-    [7, 5, 2, 8, 3, 1, 9, 6, 4],
-    [8, 1, 6, 7, 9, 4, 5, 2, 3],
-    [9, 4, 3, 5, 6, 2, 0, 0, 0]
+        [0,0,0,1,0,0,0,0,0],
+        [0,0,0,3,2,0,0,0,0],
+        [0,0,0,0,0,9,0,0,0],
+        [0,0,0,0,0,0,0,7,0],
+        [0,0,0,0,0,0,0,0,0],
+        [0,0,0,9,0,0,0,0,0],
+        [0,0,0,0,0,0,9,0,0],
+        [0,0,0,0,0,0,0,0,3],
+        [0,0,0,0,0,0,0,0,0]
     ])
 
     print(sudoku)
@@ -212,15 +207,65 @@ if __name__ == "__main__":
     else:
         print("Sudoku is incorrect! Please check your solution.")
 
-    # sudoku.update_cell(0, 0, 2)
-    # sudoku.update_cell(0, 1, 3)
-    # sudoku.update_cell(0, 3, 4)
-    # print(sudoku)
+    example_puzzle = [
+        [7, 0, 0, 8, 6, 5, 9, 0, 0],
+        [0, 0, 0, 7, 9, 0, 2, 0, 0],
+        [0, 1, 0, 0, 4, 3, 0, 7, 0],
+        [2, 3, 1, 0, 0, 0, 0, 0, 0],
+        [4, 0, 7, 0, 1, 2, 5, 8, 0],
+        [8, 0, 0, 0, 3, 7, 1, 0, 6],
+        [1, 0, 0, 6, 0, 9, 0, 0, 4],
+        [9, 4, 0, 0, 5, 0, 0, 0, 0],
+        [0, 5, 2, 3, 0, 0, 0, 0, 0]
+    ]
 
+
+    # sudoku = Sudoku(sudoku)
     starttime = time.time()
-    pprint(sudoku.solve_sudoku())
+    pprint(sudoku.solve_sudoku(example_puzzle))
+    pprint(example_puzzle)
     print("Time taken: ", time.time() - starttime)
-    pprint(sudoku)
+    pprint(example_puzzle)
 
-    # last time recorded: 9.760859489440918
+    example_puzzle_list = [
+        [7, 2, 0, 8, 6, 5, 9, 0, 0],
+        [0, 0, 0, 7, 9, 0, 2, 0, 0],
+        [0, 1, 0, 0, 4, 3, 0, 7, 0],
+        [2, 3, 1, 0, 0, 0, 0, 0, 0],
+        [4, 0, 7, 0, 1, 2, 5, 8, 0],
+        [8, 0, 0, 0, 3, 7, 1, 0, 6],
+        [1, 0, 0, 6, 0, 9, 0, 0, 4],
+        [9, 4, 0, 0, 5, 0, 0, 0, 0],
+        [0, 5, 2, 3, 0, 0, 0, 0, 0]
+    ]
 
+    sudoku = Sudoku(example_puzzle_list)
+    # fill all the empty cells with possible numbers
+    for r in range(1):
+        for c in range(3):
+            if sudoku.grid[r][c] == 0:
+                sudoku.grid[r][c] = sudoku.possible_numbers(example_puzzle_list, r, c)
+
+    pprint(sudoku.__str__())
+
+    # # - Gerar puzzles para cada possibilidade -
+    possible_puzzles = []
+    for r in range(1):
+        # print(possible_puzzles)
+        for c in range(9):
+            if type(example_puzzle_list[r][c]) == list:
+                for i in example_puzzle_list[r][c]:
+                    new_puzzle = example_puzzle_list.copy()
+                    new_puzzle[r][c] = i
+                    possible_puzzles.append(new_puzzle)
+                    print('--'*10)
+                    pprint(new_puzzle)
+
+    # pprint(possible_puzzles)
+    # pprint(example_puzzle_list)
+    # for p in possible_puzzles:
+    #     sudoku = Sudoku(p)
+    #     if sudoku.check():
+    #         pprint(p)
+    #         print('certo')
+    #         break
