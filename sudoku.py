@@ -197,7 +197,7 @@ class Sudoku:
         if row is None:
             return True
 
-        for guess in range(1, 10):      
+        for guess in range(1, 10):  # posteriormente, mudar para possible_numbers    
            
 
             if self.is_valid(self.grid, guess, row, col):
@@ -206,7 +206,7 @@ class Sudoku:
                 if self.solve_sudoku():
                     # print('achou', guess, row, col)
                     return True
-            # print(self.grid)
+
             self.grid[row][col] = 0
         
         return False
@@ -217,15 +217,15 @@ class Sudoku:
 if __name__ == "__main__":
 
     sudoku = Sudoku([
-    [2, 3, 4, 1, 5, 6, 7, 8, 9],
-    [1, 7, 9, 3, 2, 8, 4, 5, 6],
-    [5, 6, 8, 4, 7, 9, 1, 3, 2],
-    [3, 9, 1, 2, 4, 5, 6, 7, 8],
-    [4, 2, 5, 6, 8, 7, 3, 9, 1],
-    [6, 8, 7, 9, 1, 3, 2, 4, 5],
-    [7, 5, 2, 8, 3, 1, 9, 6, 4],
-    [8, 1, 6, 7, 9, 4, 5, 2, 3],
-    [9, 4, 3, 5, 6, 2, 0, 0, 0]
+    [0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 3, 2, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 9, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 7, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 9, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 9, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 3],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
     ])
 
     print(sudoku)
@@ -240,10 +240,13 @@ if __name__ == "__main__":
     # sudoku.update_cell(0, 3, 4)
     # print(sudoku)
 
-    starttime = time.time()
-    pprint(sudoku.solve_sudoku())
-    print("Time taken: ", time.time() - starttime)
-    pprint(sudoku)
+    # starttime = time.time()
+    # pprint(sudoku.solve_sudoku())
+    # print("Time taken: ", time.time() - starttime)
+    # print(sudoku)
+
+    p_puzzles = sudoku.generate_puzzles()
+    print(p_puzzles, len(p_puzzles))
 
     # last time recorded: 9.760859489440918
 
