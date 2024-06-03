@@ -14,8 +14,8 @@ import asyncio
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from sudokuHttp import sudokuHTTP
-from sudokuHttp import CustomSudokuHTTP
+from HttpServer import sudokuHTTP
+from HttpServer import CustomSudokuHTTP
 from http.server import HTTPServer
 
 from sudoku import Sudoku
