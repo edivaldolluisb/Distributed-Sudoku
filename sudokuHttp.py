@@ -21,7 +21,7 @@ class sudokuHTTP(BaseHTTPRequestHandler):
             # receive what comes from the callback
             solved_sudoku = self.callback(sudoku)
             # build a json response
-            response = {'solved': True, 'sudoku': solved_sudoku}
+            response = {'sudoku': solved_sudoku}
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -31,24 +31,31 @@ class sudokuHTTP(BaseHTTPRequestHandler):
             self.send_response(404)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'error': 'Not found'}).encode())
+            self.wfile.write(json.dumps({'error': 'Page not found! Go to /solve istead'}).encode())
 
     def do_GET(self):
         if self.path == '/stats':
+
+            # retornar os status da rede p2p
+            status = self.callback('stats')
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'uptime': time.time()}).encode())
+            self.wfile.write(json.dumps(status).encode())
         elif self.path == '/network':
+            # retornar a lista de connexões
+            network = self.callback('network')
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'network': 'localhost'}).encode())
+            self.wfile.write(json.dumps(network).encode())
         else:
             self.send_response(404)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'error': 'Not found'}).encode())
+            self.wfile.write(json.dumps({'error': 'Page not found, check /stats or /network'}).encode())
 
 
 class CustomSudokuHTTP(sudokuHTTP):
