@@ -14,8 +14,6 @@ import asyncio
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from HttpServer import sudokuHTTP
-from HttpServer import CustomSudokuHTTP
 from http.server import HTTPServer
 
 from sudoku import Sudoku
@@ -45,7 +43,7 @@ class Server:
         self.sel.register(self.sock, selectors.EVENT_READ, self.accept)
 
         # http server
-        self.http_server = HTTPServer(('localhost', httpport), lambda *args, **kwargs: CustomSudokuHTTP(self.sudoku_received, *args, **kwargs))
+        self.http_server = HTTPServer(('localhost', httpport), lambda *args, **kwargs: sudokuHTTP(self.sudoku_received, *args, **kwargs))
 
         # connection data
         self.connection: set = {self.sock}

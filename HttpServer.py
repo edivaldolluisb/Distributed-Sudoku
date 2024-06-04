@@ -57,12 +57,6 @@ class sudokuHTTP(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({'error': 'Page not found, check /stats or /network'}).encode())
 
-
-class CustomSudokuHTTP(sudokuHTTP):
-    def __init__(self, callback, *args, **kwargs):
-        super().__init__(callback, *args, **kwargs)
-
-
 # server = HTTPServer(('localhost', 8080), sudokuHTTP)
 # print('Server running ...')
 # server.serve_forever()
