@@ -21,6 +21,9 @@ from sudoku import Sudoku
 
 import json
 
+# logging config 
+logging.basicConfig(filename=f"{sys.argv[0]}.log", level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 class Server:
     """Chat Server process."""
 
@@ -30,6 +33,7 @@ class Server:
         
         self._host = host
         self._port = port
+        self._http_port = httpport
         self.connect_to = connect_port
         self.myip = self.get_my_ip()
 
@@ -49,7 +53,6 @@ class Server:
         # connection data
         self.connection: set = {self.sock}
         self.bind_connections: dict = {}
-        self.ports: set = {}
 
         self.network = {f"{self.myip}:{self._port}": []}
         self.stats ={   
@@ -64,7 +67,6 @@ class Server:
         self.mySodokuGrid = Sudoku([])
         self.mySodokuQueue = queue.Queue()
         self.solution_found: bool = True
-        self.positions: dict = {}
         self.checked: int = 0
         self.solved: int = 0 # how many sudokus were solved
 
@@ -85,7 +87,6 @@ class Server:
         self.sel.register(conn, selectors.EVENT_READ, self.read)
         self.connection.add(conn)
         
-
         print(f'this node got a new connection')
 
     def connect(self, send: bool = True):
@@ -100,13 +101,14 @@ class Server:
 
             # create a bind point in the bind connections variable
             self.bind_connections[connection.getpeername()] = connection.getpeername()
-            self.ports[connection.getpeername()] = self.connect_to[1]
 
             # send my join message
             ip = self.myip
             # print(f"hostname: {hostname}, ip: {ip}")
-            join_message = {"command":"join", "bindPoint": (self._host, self._port), "reply": send, "ip": ip}
+            join_message = {"command":"join", "bindPoint": (self.myip, self._port), "reply": send, "ip": ip}
             connection.sendall(json.dumps(join_message).encode())
+
+            logging.info(f"{self.myip}:{self._port} connected to {self.connect_to}")
 
         except Exception as e:
             print(f'problema ao conectar!. Error : {e}')
@@ -127,14 +129,16 @@ class Server:
                         ip = message['ip']
                         addr = (ip, int(port))
                         self.bind_connections[conn.getpeername()] = addr
-                        self.ports[conn.getpeername()] = port
 
                         self.network[f"{self.myip}:{self._port}"].append(f"{ip}:{port}")
 
                         # send the list of bind connections values 
                         print(f"reply message: {message['reply']}")
                         if message['reply']:
-                            bind_points = list(self.bind_connections.values())
+                            copy_connections = self.bind_connections.copy()
+                            # remove the connection that is sending the message
+                            copy_connections.pop(conn.getpeername())
+                            bind_points = list(copy_connections.values())
                             join_reply = {"command": "join_reply", "bindPoints": bind_points, "ip": self.myip}
                             conn.send(json.dumps(join_reply).encode())
 
@@ -157,7 +161,8 @@ class Server:
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou task de outro nó")
-
+                
+                        logging.info(f"{self.myip}:{self._port} connected to {addr}")
 
                     elif message['command'] == 'join_reply':
                         print(f'received points to connect: {message["bindPoints"]}')
@@ -175,10 +180,12 @@ class Server:
                             print(f'node: {node}')
                             print(f'my connections: {self.bind_connections}')
                             # check if hasn't connected to the node and port yet
-                            if node not in self.bind_connections.values() and node[1] != self._port and node[1] not in self.ports.values():
-                            # if node not in self.bind_connections.values() and node[1] != self._port:
+                            if node not in self.bind_connections.values() :
+
                                 self.connect_to = node
                                 self.connect(False)
+
+                        logging.info(f"{self.myip}:{self._port} received nodes list: {message['bindPoints']}")
 
                     elif message['command'] == 'askToSolve':
                         print(f"Recebido comando de resolução de sudoku: {message}")
@@ -526,6 +533,7 @@ class Server:
 
     def loop(self):
         """Loop indefinetely."""
+        logging.info(f"Server is running on {self._host}:{self._port} http port: {self._http_port}")
 
         # connect to another node
         if self.connect_to is not None:
@@ -575,3 +583,4 @@ if __name__ == "__main__":
 
     node = Server('', socket_port, http_port, anchorage, handicap)
     node.loop()
+
