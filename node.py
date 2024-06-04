@@ -63,7 +63,7 @@ class Server:
         # vars for messages and sudoku
         self.mySodokuGrid = Sudoku([])
         self.mySodokuQueue = queue.Queue()
-        self.solution_found: bool = False
+        self.solution_found: bool = True
         self.positions: dict = {}
         self.checked: int = 0
         self.solved: int = 0 # how many sudokus were solved
@@ -112,7 +112,7 @@ class Server:
             print(f'problema ao conectar!. Error : {e}')
 
     def read(self, conn, mask):
-        """REad incomming messages"""
+        """Read incomming messages"""
         try:
             data = conn.recv(1024)
 
@@ -140,6 +140,24 @@ class Server:
 
                         # imprime a lista de conexões atualizada
                         print(f'this node connections: {self.bind_connections}')
+
+                        # ver se estou a resolver um puzzle no momento 
+                        time.sleep(0.5) # FIXME: verificar a abordagem de tempo
+                        if not self.solution_found or not self.solved_event.is_set():
+                            if not self.mySodokuQueue.empty():
+                                task = self.mySodokuQueue.get()
+                                solve = {"command": "solve", "sudoku": task}
+                                conn.send(json.dumps(solve).encode())
+                                self.task_list[conn.getpeername()] = task
+                                print(f"Enviou sudoku para resolver")
+                            elif len(self.task_list) > 0:
+                                # pegar o trabalho do outro nó
+                                task = self.task_list.popitem()[1]
+                                solve = {"command": "solve", "sudoku": task}
+                                conn.send(json.dumps(solve).encode())
+                                self.task_list[conn.getpeername()] = task
+                                print(f"Enviou task de outro nó")
+
 
                     elif message['command'] == 'join_reply':
                         print(f'received points to connect: {message["bindPoints"]}')
@@ -172,11 +190,22 @@ class Server:
                         print(f"Recebido comando de confirmação para resolver")
                         print(f"enviando sudoku para resolver")
 
-                        task = self.mySodokuQueue.get()
-                        solve = {"command": "solve", "sudoku": task}
-                        conn.send(json.dumps(solve).encode())
+                        # ver se tem tarefas na fila
+                        if not self.mySodokuQueue.empty:
+                            task = self.mySodokuQueue.get()
+                            solve = {"command": "solve", "sudoku": task}
+                            conn.send(json.dumps(solve).encode())
 
-                        self.task_list[conn.getpeername()] = task
+                            self.task_list[conn.getpeername()] = task
+                        
+                        elif len(self.task_list) > 0:
+                            # pegar o trabalho do outro nó
+                            task = self.task_list.popitem()[1]
+                            solve = {"command": "solve", "sudoku": task}
+                            conn.send(json.dumps(solve).encode())
+                            self.task_list[conn.getpeername()] = task
+                            print(f"Enviou task de outro nó")
+
 
                     elif message['command'] == 'network':
                         print(f"Recebido comando para enviar a rede")
@@ -370,6 +399,7 @@ class Server:
 
                 print(f"Endpoint: /solve")	
                 sudokuToSolve = sudoku['sudoku']
+                self.solution_found = False # procurando solução
 
                 # gerar um id para o sudoku
                 sudokuId = str(uuid.uuid4())
@@ -415,7 +445,7 @@ class Server:
                 self.task_list.clear()
 
                 # FIXME: reset variables tenho que resetar o evento também ?
-                self.solution_found = False
+                self.solution_found = True
                 self.solved += 1
                 print(f"Sudoku Resolvido\nTempo de execução: {time.time() - start_time} s")
                 # return the solved sudoku
