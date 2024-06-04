@@ -34,6 +34,7 @@ class Server:
         self._host = host
         self._port = port
         self._http_port = httpport
+        self._handicap = handicap * 0.001
         self.connect_to = connect_port
         self.myip = self.get_my_ip()
 
@@ -248,7 +249,7 @@ class Server:
                         r, c = checking_cell
 
                         puzzle = sudokuTask[1]
-                        sudoku = Sudoku(puzzle)
+                        sudoku = Sudoku(puzzle, base_delay=self._handicap)
 
                         # try to solve the sudoku
                         print(f"Resolvendo task ...")
@@ -413,7 +414,7 @@ class Server:
                 self.current_sudoku_id = sudokuId
                 self.sudokuIds[sudokuId] = False
 
-                self.mySodokuGrid = Sudoku(sudokuToSolve)
+                self.mySodokuGrid = Sudoku(sudokuToSolve, base_delay=self._handicap)
 
                 # # generate puzzles
                 puzzles = self.mySodokuGrid.generate_puzzles()
@@ -486,7 +487,7 @@ class Server:
 
             # start solving the sudoku
             puzzle = task[1]
-            sudoku = Sudoku(puzzle)
+            sudoku = Sudoku(puzzle, base_delay=self._handicap)
 
             print(f"Self solving ...")
             solved = sudoku.solve_sudoku()
@@ -581,6 +582,6 @@ if __name__ == "__main__":
         anchorage = (host, int(port))
         # print(f"anchorage: {anchorage}")
 
-    node = Server('', socket_port, http_port, anchorage, handicap)
+    node = Server('0.0.0.0', socket_port, http_port, anchorage, handicap)
     node.loop()
 

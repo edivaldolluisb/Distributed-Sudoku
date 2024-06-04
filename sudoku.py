@@ -30,7 +30,7 @@ class Sudoku:
         )
 
         if num_requests > threshold:
-            delay = base_delay * (num_requests - threshold + 1)
+            delay = base_delay * (num_requests - threshold + 1) # TODO: * o handicap ?
             time.sleep(delay)
 
         self.check_count += 1
