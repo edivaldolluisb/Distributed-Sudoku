@@ -467,10 +467,15 @@ class Server:
             # get a task from the queue if there is any
             if not self.mySodokuQueue.empty():
                 task = self.mySodokuQueue.get()
+            
+            elif len(self.task_list) > 0:
+                # pegar task na lista de tarefas
+                task = self.task_list.popitem()[1]
+                print(f"Peguei na lista de tarefas")
   
             
             # add the task to the task list
-            # self.task_list[self.sock.getpeername()] = task
+            self.task_list['self.socket'] = task
 
             # start solving the sudoku
             puzzle = task[1]
