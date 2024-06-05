@@ -2,7 +2,7 @@
 import argparse
 import selectors
 import socket
-import sys
+import sys, platform
 import signal
 import time
 import threading
@@ -34,7 +34,7 @@ class Server:
         self._host = host
         self._port = port
         self._http_port = httpport
-        self._handicap = handicap * 0.001
+        self._handicap = handicap * 0.01 # 0.001
         self.connect_to = connect_port
         self.myip = self.get_my_ip()
 
@@ -330,8 +330,8 @@ class Server:
 
 
                 except json.JSONDecodeError as e:
-                    print(f"Erro ao decodificar a mensagem JSON: {e}")
-                    self.shutdown(signal.SIGINT, None)
+                    print(f"Erro ao decodificar a mensagem JSON enviada por {conn}: {e}")
+                    # self.shutdown(signal.SIGINT, None)
 
             else:
                 print(f'closing connection for:{conn.getpeername()}')
@@ -344,16 +344,16 @@ class Server:
 
         except ConnectionResetError:
             print(f'conexão fechada abrumtamente por {conn.getpeername()}')
-            self.sel.unregister(conn)
-            self.bind_connections.pop(conn.getpeername())
-            print(f'this node connections: {self.bind_connections}')
-            self.connection.remove(conn)
-            conn.close()
+            if conn in self.connection:
+                self.sel.unregister(conn)
+                self.bind_connections.pop(conn.getpeername())
+                print(f'this node connections: {self.bind_connections}')
+                self.connection.remove(conn)
+                conn.close()
 
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
-            self.shutdown(signal.SIGINT, None)
-            sys.exit(1)
+            # self.shutdown(signal.SIGINT, None)
 
     def sudoku_received(self, sudoku):
         """processar o sudoku recibido por http"""
@@ -462,9 +462,19 @@ class Server:
 
     def get_my_ip(self):
         """Get the ip address of the node"""
-        hostname = socket.gethostname()
-        ip = socket.gethostbyname(hostname)
-        return ip
+
+        # chekc my os system 
+        if platform.system() == "Windows":
+            hostname = socket.gethostname()
+            ip = socket.gethostbyname(hostname)
+            return ip
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+
+            return ip
 
    
     def self_solve(self, puzzle_id):
@@ -582,6 +592,6 @@ if __name__ == "__main__":
         anchorage = (host, int(port))
         # print(f"anchorage: {anchorage}")
 
-    node = Server('0.0.0.0', socket_port, http_port, anchorage, handicap)
+    node = Server('', socket_port, http_port, anchorage, handicap)
     node.loop()
 

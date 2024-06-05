@@ -281,7 +281,8 @@ class Sudoku:
            
             # TODO: poderar usar a função check_is_valid do professor
             if row is not None and col is not None:
-                if self.is_valid(self.grid, guess, row, col):
+                # if self.is_valid(self.grid, guess, row, col):
+                if self.check_is_valid(row, col, guess):
                     self.grid[row][col] = guess 
 
                     if self.solve_sudoku():
