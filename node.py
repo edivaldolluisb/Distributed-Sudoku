@@ -44,7 +44,7 @@ class Server:
         self.sock.bind((self._host, self._port))
         self.sock.listen(50)
         self.sock.setblocking(False)
-        print(f"Listening on {self._host}:{self._port}")
+        print(f"Listening on {self.myip}:{self._port}")
 
         self.sel.register(self.sock, selectors.EVENT_READ, self.accept)
 
@@ -79,6 +79,7 @@ class Server:
         self.network_count = 0
         self.sudokuIds = {str: bool}
         self.current_sudoku_id = None
+        self.pool = ThreadPoolExecutor(10)
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -151,14 +152,14 @@ class Server:
                         if not self.solution_found or not self.solved_event.is_set():
                             if not self.mySodokuQueue.empty():
                                 task = self.mySodokuQueue.get()
-                                solve = {"command": "solve", "sudoku": task}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou sudoku para resolver")
                             elif len(self.task_list) > 0:
                                 # pegar o trabalho do outro nó
                                 task = self.task_list.popitem()[1]
-                                solve = {"command": "solve", "sudoku": task}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou task de outro nó")
@@ -201,7 +202,7 @@ class Server:
                         # ver se tem tarefas na fila
                         if not self.mySodokuQueue.empty:
                             task = self.mySodokuQueue.get()
-                            solve = {"command": "solve", "sudoku": task}
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                             conn.send(json.dumps(solve).encode())
 
                             self.task_list[conn.getpeername()] = task
@@ -209,7 +210,7 @@ class Server:
                         elif len(self.task_list) > 0:
                             # pegar o trabalho do outro nó
                             task = self.task_list.popitem()[1]
-                            solve = {"command": "solve", "sudoku": task}
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                             conn.send(json.dumps(solve).encode())
                             self.task_list[conn.getpeername()] = task
                             print(f"Enviou task de outro nó")
@@ -244,52 +245,61 @@ class Server:
                             self.network_count = 0
 
                     elif message['command'] == 'solve':
-                        sudokuTask = message['sudoku']
-                        checking_cell = tuple(sudokuTask[0])
-                        r, c = checking_cell
 
-                        puzzle = sudokuTask[1]
-                        sudoku = Sudoku(puzzle, base_delay=self._handicap)
+                        # store the sudoku id
+                        sudoku_id = message['sudokuId']
+                        self.sudokuIds[sudoku_id] = False
 
-                        # try to solve the sudoku
-                        print(f"Resolvendo task ...")
-                        result = sudoku.solve_sudoku()
+                        # resolver em uma thread
+                        self.pool.submit(self.solve_sudoku, message, conn)
+
+                        # sudokuTask = message['sudoku']
+                        # checking_cell = tuple(sudokuTask[0])
+                        # r, c = checking_cell
+
+                        # puzzle = sudokuTask[1]
+                        # sudoku = Sudoku(puzzle, base_delay=self._handicap)
+
+                        # # try to solve the sudoku
+                        # print(f"Resolvendo task ...")
+                        # result = sudoku.solve_sudoku()
                         
-                        # update the checked count
-                        self.checked += sudoku.get_check_count()
+                        # # update the checked count
+                        # self.checked += sudoku.get_check_count()
                         
-                        print(f"Resolvido sudoku: {result}, checked: {self.checked}")
-                        response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "cell": checking_cell, "cell_value": sudoku.get_cell(r, c), "solution": result}
-                        conn.send(json.dumps(response).encode())
+                        # print(f"Resolvido sudoku: {result}, checked: {self.checked}")
+                        # response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "cell": checking_cell, "cell_value": sudoku.get_cell(r, c), "solution": result}
+                        # conn.send(json.dumps(response).encode())
 
 
                     elif message['command'] == 'solution':
-                        print(f"lista de tarefas: {self.task_list}")
-                        print(f"queue size: {self.mySodokuQueue.qsize()}")
+                        # print(f"Task list: {self.task_list}, queue: {list(self.mySodokuQueue.queue), self.mySodokuQueue.qsize()}")
+
                         
                         solved = message['solution']
+                        solvedId = message['sudokuId']
                         print(f"Recebido solução: {solved}")
+
+
 
                         # remover o trabalho do nó
                         if conn.getpeername() in self.task_list:
                             self.task_list.pop(conn.getpeername())
 
-                        if solved and not self.solution_found:
+                        if solved and not self.solution_found and self.sudokuIds.get(solvedId) is False:
                             # atualizar o sudoku com a solução
                             self.mySodokuGrid.update_sudoku(message['sudoku'])
                             self.solution_found = True
                             self.sudokuIds[self.current_sudoku_id] = True
                             self.solved_event.set()
 
-                            # TODO: depois enviar uma mensagem para os outros nodes 
-                            # para pararem de tentar resolver o sudoku pois já foi resolvido
 
                         elif not solved and not self.mySodokuQueue.empty():
 
                             print(f"Enviando sudoku para resolver")
                             
                             task = self.mySodokuQueue.get()
-                            solve = {"command": "solve", "sudoku": task}                            
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}                            
                             conn.send(json.dumps(solve).encode())
 
                             self.task_list[conn.getpeername()] = task
@@ -298,7 +308,7 @@ class Server:
                             if len(self.task_list) > 1:
                                 # pegar o trabalho do outro nó
                                 task = self.task_list.popitem()[1]
-                                solve = {"command": "solve", "sudoku": task}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou task de outro nó")
@@ -320,13 +330,16 @@ class Server:
                                 for node in self.connection:
                                     if node != self.sock and node not in self.task_list.keys():
                                         task = self.mySodokuQueue.get()
-                                        solve = {"command": "solve", "sudoku": task}
+                                        solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                                         node.send(json.dumps(solve).encode())
                                         self.task_list[node.getpeername()] = task
 
                                 print(f"Enviou novas tarefas para os outros nodes")
 
 
+                    elif message['command'] == 'stop':
+                        # parar a resolução do sudoku
+                        self.sudokuIds.pop(message['sudokuId'])
 
 
                 except json.JSONDecodeError as e:
@@ -438,21 +451,27 @@ class Server:
                 print("Resolvendo sudoku...")
 
                 # FIXME: criar um processo em uma thread para esse nó também participar da resolução
-                pool = ThreadPoolExecutor(3)
-                pool.submit(self.self_solve, sudokuId)
+                # pool = ThreadPoolExecutor(3)
+                self.pool.submit(self.self_solve, sudokuId)
 
                 print(f"Esperando resolução ... ")
                 self.solved_event.clear() # clear the event
                 self.solved_event.wait() # wait for the event to be set
-                
-                self.sudokuIds[sudokuId] = True
+
+                # enviar stop message para os outros nodes
+                for node in self.connection:
+                    if node != self.sock:
+                        stop = {"command": "stop", "sudokuId": self.current_sudoku_id}
+                        node.send(json.dumps(stop).encode())
                      
 
                 # clean the queue for this task dict
                 self.mySodokuQueue = queue.Queue() 
                 self.task_list.clear()
 
-                # FIXME: reset variables tenho que resetar o evento também ?
+                # resetar as variáveis              
+                self.sudokuIds.pop(sudokuId)
+                self.current_sudoku_id = None
                 self.solution_found = True
                 self.solved += 1
                 print(f"Sudoku Resolvido\nTempo de execução: {time.time() - start_time} s")
@@ -481,7 +500,7 @@ class Server:
         """this node function to solve the sudoku"""
 
         # enquanto a solução não for encontrada
-        while self.sudokuIds[puzzle_id] is False:
+        while self.sudokuIds.get(puzzle_id) is False:
             # get a task from the queue if there is any
             if not self.mySodokuQueue.empty():
                 task = self.mySodokuQueue.get()
@@ -494,6 +513,7 @@ class Server:
             
             # add the task to the task list
             self.task_list['self.socket'] = task
+            # print(f"Task list: {self.task_list}, queue: {list(self.mySodokuQueue.queue), self.mySodokuQueue.qsize()}")
 
             # start solving the sudoku
             puzzle = task[1]
@@ -504,12 +524,11 @@ class Server:
 
             # update the checked count
             self.checked += sudoku.get_check_count()
-
-            print(f"Resolvido sudoku: {solved}, checked: {self.checked}, solution found: {self.solution_found}")
-            if solved:
+            solution = self.sudokuIds.get(puzzle_id)
+            print(f"Self solution found: {solved}, checked: {self.checked}, puzzle solved: {solution}")
+            if solved and self.sudokuIds.get(puzzle_id) is False:
                 # atualizar o sudoku com a solução
                 self.mySodokuGrid.update_sudoku(sudoku.get_sudoku())
-                self.solution_found = True
                 self.solved_event.set()
                 print(f"soltution found: {self.solution_found}")
 
@@ -517,16 +536,45 @@ class Server:
                 self.sudokuIds[puzzle_id] = True
 
                 break
-            elif self.solution_found or self.sudokuIds[puzzle_id]:
-                # remove sudoku from the dict
-                self.sudokuIds.pop(puzzle_id)
+
+            elif solution is True or solution is None:
                 break
+            
 
         
-        print(f"Self solve finished")
-
+        print(f"Self solve finished!")
         return 
     
+
+    def solve_sudoku(self, message, conn):
+        """solve sudoku
+        Args:
+            message (dict): message received
+            conn (socket): connection who sent the message
+        """
+        sudokuTask = message['sudoku']
+        ID = message['sudokuId']
+        checking_cell = tuple(sudokuTask[0])
+
+        puzzle = sudokuTask[1]
+        sudoku = Sudoku(puzzle, base_delay=self._handicap)
+
+        # try to solve the sudoku
+        print(f"Resolvendo task ...")
+        result = sudoku.solve_sudoku()
+        
+        # update the checked count
+        self.checked += sudoku.get_check_count()
+        
+        # Send message to the node if wasn't solved yet
+        if self.sudokuIds.get(ID) is not None:
+            print(f"Resolvido sudoku: {result}, checked: {self.checked}")
+            response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "cell": checking_cell, "sudokuId": ID, "solution": result}
+            conn.send(json.dumps(response).encode())
+        else:
+            print("Thread terminada!")
+        
+        return
     
     def shutdown(self, signum, frame):
         """Shutdown server."""
@@ -568,6 +616,8 @@ class Server:
         except Exception as e:
             print(f'Erro: {e}')
             self.shutdown(signal.SIGINT, None)
+        finally:
+            logging.info(f"Server {self.myip}:{self._host} is shutting down.")
 
 
 if __name__ == "__main__":

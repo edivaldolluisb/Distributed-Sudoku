@@ -257,7 +257,7 @@ class Sudoku:
             return None
 
         puzzle = deepcopy(self.get_sudoku())
-        print(r, c)
+        # print(r, c)
         for i in range(1, 10):
             new_puzzle = puzzle.copy()
             new_puzzle[r][c] = i
@@ -365,5 +365,5 @@ if __name__ == "__main__":
          [2, 3, 5, 0, 0, 7, 1, 4, 9]]
     )
     
-    print(sudoku.solve_sudoku())
-    print(sudoku)
+    # print(sudoku.solve_sudoku())
+    # print(sudoku)
