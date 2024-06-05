@@ -253,24 +253,6 @@ class Server:
                         # resolver em uma thread
                         self.pool.submit(self.solve_sudoku, message, conn)
 
-                        # sudokuTask = message['sudoku']
-                        # checking_cell = tuple(sudokuTask[0])
-                        # r, c = checking_cell
-
-                        # puzzle = sudokuTask[1]
-                        # sudoku = Sudoku(puzzle, base_delay=self._handicap)
-
-                        # # try to solve the sudoku
-                        # print(f"Resolvendo task ...")
-                        # result = sudoku.solve_sudoku()
-                        
-                        # # update the checked count
-                        # self.checked += sudoku.get_check_count()
-                        
-                        # print(f"Resolvido sudoku: {result}, checked: {self.checked}")
-                        # response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "cell": checking_cell, "cell_value": sudoku.get_cell(r, c), "solution": result}
-                        # conn.send(json.dumps(response).encode())
-
 
                     elif message['command'] == 'solution':
                         # print(f"Task list: {self.task_list}, queue: {list(self.mySodokuQueue.queue), self.mySodokuQueue.qsize()}")
@@ -348,21 +330,11 @@ class Server:
 
             else:
                 print(f'closing connection for:{conn.getpeername()}')
-
-                self.sel.unregister(conn)
-                conn.close()
-                self.connection.remove(conn)
-                self.bind_connections.pop(conn.getpeername())
-
+                self.close_connection(conn)
 
         except ConnectionResetError:
             print(f'conexão fechada abrumtamente por {conn.getpeername()}')
-            if conn in self.connection:
-                self.sel.unregister(conn)
-                self.bind_connections.pop(conn.getpeername())
-                print(f'this node connections: {self.bind_connections}')
-                self.connection.remove(conn)
-                conn.close()
+            self.close_connection(conn)
 
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
@@ -589,6 +561,14 @@ class Server:
         print("Server fechado.")
         sys.exit(0)
 
+    def close_connection(self, conn):
+        """Close the connection."""
+        if conn in self.connection:
+            if conn in self.sel.get_map(): # check if socket is registered
+                self.sel.unregister(conn)
+            self.connection.remove(conn)
+            self.bind_connections.pop(conn.getpeername())
+            conn.close()
 
     def loop(self):
         """Loop indefinetely."""
