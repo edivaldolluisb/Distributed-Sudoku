@@ -2,15 +2,13 @@
 import argparse
 import selectors
 import socket
-import sys, platform
-import signal
+import sys, platform, signal
 import time
 import threading
 import queue
 from collections import deque
 import logging
 import traceback
-import asyncio
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -70,7 +68,9 @@ class Server:
         self.solution_found: bool = True
         self.checked: int = 0
         self.solved: int = 0 # how many sudokus were solved
-
+        self.network_cache = {}
+        self.keep_alive_last = [0, 0]
+# 
         self.task_list = {} # peer: task
 
         # threading solved event
@@ -219,7 +219,7 @@ class Server:
                     elif message['command'] == 'network':
                         print(f"Recebido comando para enviar a rede")
                         my_network_list = [f"{connection[0]}:{connection[1]}" for connection in self.bind_connections.values()]
-                        network = {"command": "update_network", "network": {f"{self.myip}:{self._port}": my_network_list}, "validations": self.checked, "solved": self.solved}
+                        network = {"command": "update_network", "network": {f"{self.myip}:{self._port}": my_network_list}, "validations": self.checked}
                         conn.send(json.dumps(network).encode())
 
                     elif message['command'] == 'update_network':
@@ -230,9 +230,10 @@ class Server:
 
                         # update the stats
                         validations = message['validations']
-                        self.stats['all']['solved'] += message['solved']
-                        self.stats['all']['validations'] += validations
+                        # self.stats['all']['solved'] += message['solved']
+                        # self.stats['all']['validations'] += validations
 
+                        # update stats nodes list
                         address = list(message['network'].keys())[0] # get the address
                         node = {"address": address,
                                 "validations": validations
@@ -323,6 +324,24 @@ class Server:
                         # parar a resolução do sudoku
                         self.sudokuIds.pop(message['sudokuId'])
 
+                    elif message['command'] == 'keep_alive':
+                        current_list = [self.solved, self.checked]
+                        if current_list == self.keep_alive_last:
+                            # os dados não mudaram
+                            message = {"command": "keep_alive_reply", "status": False, "address": f"{self.myip}:{self._port}"}
+                        else:
+                            new_list = [self.solved, self.checked]
+                            self.keep_alive_last = new_list
+                            message = {"command": "keep_alive_reply", "status": new_list, "address": f"{self.myip}:{self._port}"}
+                        
+                        conn.send(json.dumps(message).encode())
+                    
+                    elif message['command'] == 'keep_alive_reply':
+                        print(self.network_cache)
+                        IP = message['address']
+                        if message['status'] is not False:
+                            self.network_cache[IP] = message['status']
+
 
                 except json.JSONDecodeError as e:
                     print(f"Erro ao decodificar a mensagem JSON enviada por {conn}: {e}")
@@ -349,21 +368,17 @@ class Server:
             case 'stats':
                 print(f"Endpoint: /{endpoint}")
                 self.stats['all']['solved'] = self.solved
-                self.stats['all']['validations'] = self.checked
-                self.stats['nodes'] = [{"address":f"{self.myip}:{self._port}", "validations": f"{self.checked}"}] 
+                total_solved = sum([data[0] for data in self.network_cache.values()])
+                total_validations = self.checked
+                total_validations = sum([data[1] for data in self.network_cache.values()])
+                self.stats['all']['solved'] += total_solved
+                self.stats['all']['validations'] += total_validations
 
-                # if i'm alone
-                if len(self.connection) == 1:
-                    return self.stats
-
-                for node in self.connection:
-                    if node != self.sock:
-                        stats = {"command": "network"}
-                        node.send(json.dumps(stats).encode())
-
-                # wait for the event to be set
-                self.network_event.clear()
-                self.network_event.wait()
+                nodes = []
+                for address, value in self.network_cache.items():
+                    node = {"address": address, "validations": value[1]}
+                    nodes.append(node)
+                self.stats['nodes'] = nodes
                 
                 return self.stats
 
@@ -446,6 +461,7 @@ class Server:
                 self.current_sudoku_id = None
                 self.solution_found = True
                 self.solved += 1
+                self.stats['all']['solved'] += self.solved
                 print(f"Sudoku Resolvido\nTempo de execução: {time.time() - start_time} s")
                 # return the solved sudoku
                 return self.mySodokuGrid.grid
@@ -561,18 +577,34 @@ class Server:
         print("Server fechado.")
         sys.exit(0)
 
+    def keep_alive(self):
+        """Enviar uma mensagem periodica aos nodes para verificar se ainda estão conectados"""
+
+        while True: 
+            print("Checking bros ...")
+            time.sleep(5)
+            for conn in self.connection:
+                if conn != self.sock:
+                    message = {"command": "keep_alive"}
+                    conn.send(json.dumps(message).encode())
+
     def close_connection(self, conn):
         """Close the connection."""
+        print(f'Closing connection for {self.bind_connections[conn.getpeername()]} ')
         if conn in self.connection:
             if conn in self.sel.get_map(): # check if socket is registered
                 self.sel.unregister(conn)
             self.connection.remove(conn)
             self.bind_connections.pop(conn.getpeername())
+            print('Connection closed for node')
             conn.close()
 
     def loop(self):
         """Loop indefinetely."""
         logging.info(f"Server is running on {self._host}:{self._port} http port: {self._http_port}")
+
+        # send keep alive message
+        self.pool.submit(self.keep_alive)
 
         # connect to another node
         if self.connect_to is not None:
