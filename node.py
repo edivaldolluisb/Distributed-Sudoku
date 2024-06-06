@@ -2,7 +2,7 @@
 import argparse
 import selectors
 import socket
-import sys, platform, signal
+import sys, platform, signal, os
 import time
 import threading
 import queue
@@ -322,7 +322,9 @@ class Server:
 
                     elif message['command'] == 'stop':
                         # parar a resolução do sudoku
-                        self.sudokuIds.pop(message['sudokuId'])
+                        ID = message['sudokuId']
+                        if ID in self.sudokuIds:
+                            self.sudokuIds.pop(ID)
 
                     elif message['command'] == 'keep_alive':
                         IP = message['IP']
@@ -353,6 +355,10 @@ class Server:
 
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
+            # traceback.print_exc(e)
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
             # self.shutdown(signal.SIGINT, None)
 
     def sudoku_received(self, sudoku):
@@ -439,7 +445,8 @@ class Server:
                     self.mySodokuQueue.put(puzzle)
 
                 # enviar as primeiras mensagens para os outros nodes
-                if len(self.connection) > 1:
+                print(len(self.connection))
+                if len(self.connection) > 0:
                     for node in self.connection:
                         solve = {"command": "askToSolve"}
                         node.send(json.dumps(solve).encode())
