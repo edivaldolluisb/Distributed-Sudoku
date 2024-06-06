@@ -403,7 +403,7 @@ class Server:
             case 'network':
                 print(f"Endpoint: /{endpoint}")
 
-                if len(self.connection) == 1:
+                if len(self.connection) == 0:
                     return self.network
 
                 # enviar mensagem para os outros nodes
