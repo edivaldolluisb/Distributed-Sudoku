@@ -54,13 +54,9 @@ class Server:
         self.bind_connections: dict = {}
 
         self.network = {f"{self.myip}:{self._port}": []}
-        self.stats ={   
-                        "all": {
-                            "solved": 0, 
-                            "validations": 0
-                              },
-                        "nodes": []
-                      }
+        self.stats = {  "solved": 0, 
+                        "validations": 0}
+                      
 
         # vars for messages and sudoku
         self.mySodokuGrid = Sudoku([])
@@ -132,7 +128,12 @@ class Server:
                         addr = (ip, int(port))
                         self.bind_connections[conn.getpeername()] = addr
 
-                        self.network[f"{self.myip}:{self._port}"].append(f"{ip}:{port}")
+                        peer_address = f"{ip}:{port}"
+
+                        self.network[f"{self.myip}:{self._port}"].append(peer_address)
+
+                        # verificar se seus dados em cache
+                        peer_data = self.network_cache.get(peer_address)
 
                         # send the list of bind connections values 
                         print(f"reply message: {message['reply']}")
@@ -141,7 +142,11 @@ class Server:
                             # remove the connection that is sending the message
                             copy_connections.pop(conn.getpeername())
                             bind_points = list(copy_connections.values())
-                            join_reply = {"command": "join_reply", "bindPoints": bind_points, "ip": self.myip}
+                            join_reply = {"command": "join_reply", 
+                                          "bindPoints": bind_points, 
+                                          "ip": self.myip,
+                                          "data": peer_data}
+                            
                             conn.send(json.dumps(join_reply).encode())
 
                         # imprime a lista de conexões atualizada
@@ -168,6 +173,13 @@ class Server:
 
                     elif message['command'] == 'join_reply':
                         print(f'received points to connect: {message["bindPoints"]}')
+
+                        # verificar se há dados no cache
+                        if message['data'] is not None:
+                            print(f"updating cache with: {message['data']}")
+                            self.solved = message['data']['solved']
+                            self.checked = message['data']['validations']
+
                         
                         # update peer ip
                         ip = message['ip']
@@ -228,17 +240,6 @@ class Server:
                         self.network.update(peer_network)
                         print(f"network updated")
 
-                        # update the stats
-                        validations = message['validations']
-                        # self.stats['all']['solved'] += message['solved']
-                        # self.stats['all']['validations'] += validations
-
-                        # update stats nodes list
-                        address = list(message['network'].keys())[0] # get the address
-                        node = {"address": address,
-                                "validations": validations
-                                }
-                        self.stats['nodes'].append(node)
 
                         self.network_count += 1
                         if self.network_count == len(self.connection) - 1:
@@ -325,22 +326,13 @@ class Server:
                         self.sudokuIds.pop(message['sudokuId'])
 
                     elif message['command'] == 'keep_alive':
-                        current_list = [self.solved, self.checked]
-                        if current_list == self.keep_alive_last:
-                            # os dados não mudaram
-                            message = {"command": "keep_alive_reply", "status": False, "address": f"{self.myip}:{self._port}"}
-                        else:
-                            new_list = [self.solved, self.checked]
-                            self.keep_alive_last = new_list
-                            message = {"command": "keep_alive_reply", "status": new_list, "address": f"{self.myip}:{self._port}"}
-                        
-                        conn.send(json.dumps(message).encode())
+                        IP = message['IP']
+                        IP_status = message['status']
+                        self.network_cache[IP] = IP_status
+                        print('printing cache',self.network_cache)
                     
                     elif message['command'] == 'keep_alive_reply':
-                        print(self.network_cache)
-                        IP = message['address']
-                        if message['status'] is not False:
-                            self.network_cache[IP] = message['status']
+                        pass
 
 
                 except json.JSONDecodeError as e:
@@ -367,20 +359,36 @@ class Server:
         match endpoint:
             case 'stats':
                 print(f"Endpoint: /{endpoint}")
-                self.stats['all']['solved'] = self.solved
-                total_solved = sum([data[0] for data in self.network_cache.values()])
-                total_validations = self.checked
-                total_validations = sum([data[1] for data in self.network_cache.values()])
-                self.stats['all']['solved'] += total_solved
-                self.stats['all']['validations'] += total_validations
+                return_status ={   
+                        "all": {
+                            "solved": 0, 
+                            "validations": 0
+                              },
+                        "nodes": []
+                      }
 
-                nodes = []
-                for address, value in self.network_cache.items():
-                    node = {"address": address, "validations": value[1]}
-                    nodes.append(node)
-                self.stats['nodes'] = nodes
+                nodes = [{"address":f"{self.myip}:{self._port}",
+                          "validations": self.checked}]
+                return_status['all']['solved'] += self.solved
+                return_status['all']['validations'] += self.checked
                 
-                return self.stats
+                for address, value in self.network_cache.items():
+                    solved = value["solved"]
+                    checked =  value["validations"]
+                    print(checked, solved)
+                    return_status['all']['solved'] += solved
+                    return_status['all']['validations'] += checked
+
+                    host, port = address.split(':')
+                    node = (host, int(port))
+                    if node not in self.bind_connections.values():
+                        continue
+                    node = {"address": address, "validations": checked}
+                    nodes.append(node)
+
+                return_status['nodes'] = nodes
+                
+                return return_status
 
             case 'network':
                 print(f"Endpoint: /{endpoint}")
@@ -461,7 +469,6 @@ class Server:
                 self.current_sudoku_id = None
                 self.solution_found = True
                 self.solved += 1
-                self.stats['all']['solved'] += self.solved
                 print(f"Sudoku Resolvido\nTempo de execução: {time.time() - start_time} s")
                 # return the solved sudoku
                 return self.mySodokuGrid.grid
@@ -585,7 +592,13 @@ class Server:
             time.sleep(5)
             for conn in self.connection:
                 if conn != self.sock:
-                    message = {"command": "keep_alive"}
+                    message = {"command": "keep_alive",
+                               "status": {
+                                    "solved": self.solved, 
+                                    "validations": self.checked
+                                },
+                                 "IP": f"{self.myip}:{self._port}"
+                              }
                     conn.send(json.dumps(message).encode())
 
     def close_connection(self, conn):
