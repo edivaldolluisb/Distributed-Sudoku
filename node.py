@@ -50,7 +50,7 @@ class Server:
         self.http_server = HTTPServer(('localhost', httpport), lambda *args, **kwargs: sudokuHTTP(self.sudoku_received, *args, **kwargs))
 
         # connection data
-        self.connection: set = {self.sock}
+        self.connection: set = set()
         self.bind_connections: dict = {}
 
         self.network = {f"{self.myip}:{self._port}": []}
@@ -65,8 +65,7 @@ class Server:
         self.checked: int = 0
         self.solved: int = 0 # how many sudokus were solved
         self.network_cache = {}
-        self.keep_alive_last = [0, 0]
-# 
+        self.keep_alive_nodes = {}
         self.task_list = {} # peer: task
 
         # threading solved event
@@ -242,7 +241,7 @@ class Server:
 
 
                         self.network_count += 1
-                        if self.network_count == len(self.connection) - 1:
+                        if self.network_count == len(self.connection):
                             self.network_event.set()
                             self.network_count = 0
 
@@ -312,7 +311,7 @@ class Server:
                                 
                                 # send the new puzzles to the other nodes that aint working rn
                                 for node in self.connection:
-                                    if node != self.sock and node not in self.task_list.keys():
+                                    if node not in self.task_list.keys():
                                         task = self.mySodokuQueue.get()
                                         solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
                                         node.send(json.dumps(solve).encode())
@@ -329,10 +328,16 @@ class Server:
                         IP = message['IP']
                         IP_status = message['status']
                         self.network_cache[IP] = IP_status
-                        print('printing cache',self.network_cache)
+
+                        # send reply
+                        reply_message = {"command": "keep_alive_reply"}
+                        send_message = json.dumps(reply_message).encode()
+                        conn.send(send_message)
                     
                     elif message['command'] == 'keep_alive_reply':
-                        pass
+                        # set connection to true
+                        print(f"keep alive reply from {conn.getpeername()}")
+                        self.keep_alive_nodes[conn] = time.time()
 
 
                 except json.JSONDecodeError as e:
@@ -398,9 +403,8 @@ class Server:
 
                 # enviar mensagem para os outros nodes
                 for node in self.connection:
-                    if node != self.sock:
-                        network = {"command": "network"}
-                        node.send(json.dumps(network).encode())
+                    network = {"command": "network"}
+                    node.send(json.dumps(network).encode())
 
                 # update my network list
                 my_network_list = [f"{connection[0]}:{connection[1]}" for connection in self.bind_connections.values()]
@@ -438,9 +442,8 @@ class Server:
                 # enviar as primeiras mensagens para os outros nodes
                 if len(self.connection) > 1:
                     for node in self.connection:
-                        if node != self.sock:
-                            solve = {"command": "askToSolve"}
-                            node.send(json.dumps(solve).encode())
+                        solve = {"command": "askToSolve"}
+                        node.send(json.dumps(solve).encode())
                 
                 start_time = time.time()
                 print("Resolvendo sudoku...")
@@ -455,9 +458,8 @@ class Server:
 
                 # enviar stop message para os outros nodes
                 for node in self.connection:
-                    if node != self.sock:
-                        stop = {"command": "stop", "sudokuId": self.current_sudoku_id}
-                        node.send(json.dumps(stop).encode())
+                    stop = {"command": "stop", "sudokuId": self.current_sudoku_id}
+                    node.send(json.dumps(stop).encode())
                      
 
                 # clean the queue for this task dict
@@ -589,7 +591,6 @@ class Server:
 
         while True: 
             print("Checking bros ...")
-            time.sleep(5)
             for conn in self.connection:
                 if conn != self.sock:
                     message = {"command": "keep_alive",
@@ -600,6 +601,21 @@ class Server:
                                  "IP": f"{self.myip}:{self._port}"
                               }
                     conn.send(json.dumps(message).encode())
+
+                    # set connection to false
+                    # print(f"keep alive for {conn.getpeername()}, {self.keep_alive_nodes}")
+                    self.keep_alive_nodes[conn.getpeername()] = 0
+            
+            start_time = time.time()
+            time.sleep(10)
+            # # check if the connection is still alive
+            for node, value in self.keep_alive_nodes.items():
+                if value < start_time:
+                    print(f"Conexão perdida com {node}")
+                    self.close_connection(node)
+            #     print("inside for",node.getpeername(), value)
+
+
 
     def close_connection(self, conn):
         """Close the connection."""
