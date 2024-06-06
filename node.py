@@ -336,7 +336,7 @@ class Server:
                     
                     elif message['command'] == 'keep_alive_reply':
                         # set connection to true
-                        self.keep_alive_nodes[conn.getpeername()] = True
+                        self.keep_alive_nodes[conn] = True
 
 
                 except json.JSONDecodeError as e:
@@ -609,9 +609,9 @@ class Server:
 
                     # set connection to false
                     # print(f"keep alive for {conn.getpeername()}, {self.keep_alive_nodes}")
-                    self.keep_alive_nodes[conn.getpeername()] = False
+                    self.keep_alive_nodes[conn] = False
 
-            time.sleep(5)
+            time.sleep(3)
             # # check if the connection is still alive
             for node, value in self.keep_alive_nodes.items():
                 if value is False:
