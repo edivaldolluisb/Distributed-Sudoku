@@ -74,7 +74,7 @@ class Server:
         self.network_count = 0
         self.sudokuIds = {str: bool}
         self.current_sudoku_id = None
-        self.pool = ThreadPoolExecutor(10)
+        self.pool = ThreadPoolExecutor(20)
 
     def accept(self, sock, mask):
         """Accept incoming connections."""
@@ -356,9 +356,9 @@ class Server:
         except Exception as e:
             print(f'Erro ao ler os dados: {e}')
             # traceback.print_exc(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
+            # exc_type, exc_obj, exc_tb = sys.exc_info()
+            # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            # print(exc_type, fname, exc_tb.tb_lineno)
             # self.shutdown(signal.SIGINT, None)
 
     def sudoku_received(self, sudoku):
@@ -572,7 +572,7 @@ class Server:
         # Send message to the node if wasn't solved yet
         if self.sudokuIds.get(ID) is not None:
             print(f"Resolvido sudoku: {result}, checked: {self.checked}")
-            response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "cell": checking_cell, "sudokuId": ID, "solution": result}
+            response = {"command": "solution", "sudoku": sudoku.get_sudoku(), "sudokuId": ID, "solution": result}
             conn.send(json.dumps(response).encode())
         else:
             print("Thread terminada!")
