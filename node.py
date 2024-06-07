@@ -67,7 +67,6 @@ class Server:
         self.network_cache = {}
         self.keep_alive_nodes = {}
         self.task_list = {} # peer: task
-        self.cache = {} # cache for puzzles
 
 
         # threading solved event
@@ -432,7 +431,6 @@ class Server:
                 sudokuId = str(uuid.uuid4())
                 self.current_sudoku_id = sudokuId
                 self.sudokuIds[sudokuId] = False
-                self.cache[sudokuId] = sudokuToSolve
                 self.mySodokuGrid = Sudoku(sudokuToSolve, base_delay=self._handicap)
 
                 # # generate puzzles
@@ -616,9 +614,16 @@ class Server:
                               }
                     conn.send(json.dumps(message).encode())
 
-                    # set connection to false
-                    # print(f"keep alive for {conn.getpeername()}, {self.keep_alive_nodes}")
                     self.keep_alive_nodes[conn] = False
+
+                    # check if there are taks in the queue or in the task list
+                    if not self.mySodokuQueue.empty() or len(self.task_list) > 0:
+                        # check if node is working
+                        if conn.getpeername() not in self.task_list.keys():
+                            # send ask to solve message
+                            ask = {"command": "askToSolve"}
+                            conn.send(json.dumps(ask).encode())
+                        
 
             time.sleep(3)
             # # check if the connection is still alive
@@ -671,7 +676,6 @@ class Server:
             self.shutdown(signal.SIGINT, None)
         finally:
             logging.info(f"Server {self.myip}:{self._host} is shutting down.")
-
 
 if __name__ == "__main__":
     # self, host="localhost", port=5000, httpport=8000, connect_port: Tuple = None
