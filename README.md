@@ -2,3 +2,5 @@
 
 # cd_sudoku
 Projecto CD 2023/24
+
+https://docs.google.com/document/d/1mloTifFc2gOXLKEOmNj2gBh1z1ZSyk1LuuMM53YsDzg/edit?usp=sharing
