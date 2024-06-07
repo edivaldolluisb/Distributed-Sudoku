@@ -615,15 +615,7 @@ class Server:
                     conn.send(json.dumps(message).encode())
 
                     self.keep_alive_nodes[conn] = False
-
-                    # check if there are taks in the queue or in the task list
-                    if not self.mySodokuQueue.empty() or len(self.task_list) > 0:
-                        # check if node is working
-                        if conn.getpeername() not in self.task_list.keys():
-                            # send ask to solve message
-                            ask = {"command": "askToSolve"}
-                            conn.send(json.dumps(ask).encode())
-                        
+                   
 
             time.sleep(3)
             # # check if the connection is still alive
@@ -631,6 +623,10 @@ class Server:
                 if value is False:
                     print(f"Conexão perdida com {node}")
                     self.close_connection(node)
+
+                    # remove it from the network
+                    peer = self.bind_connections[node.getpeername()]
+                    self.network.pop(f"{peer[0]}:{peer[1]}")
 
 
 
