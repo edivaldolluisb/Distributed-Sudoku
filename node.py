@@ -67,6 +67,8 @@ class Server:
         self.network_cache = {}
         self.keep_alive_nodes = {}
         self.task_list = {} # peer: task
+        self.cache = {} # cache for puzzles
+
 
         # threading solved event
         self.solved_event = threading.Event()
@@ -430,7 +432,7 @@ class Server:
                 sudokuId = str(uuid.uuid4())
                 self.current_sudoku_id = sudokuId
                 self.sudokuIds[sudokuId] = False
-
+                self.cache[sudokuId] = sudokuToSolve
                 self.mySodokuGrid = Sudoku(sudokuToSolve, base_delay=self._handicap)
 
                 # # generate puzzles

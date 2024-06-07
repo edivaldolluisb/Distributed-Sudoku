@@ -33,3 +33,6 @@ Seu servidor de Sudoku usando sockets e HTTP para comunicação entre nós é um
 Ao seguir essas sugestões, você poderá melhorar a robustez, a segurança e a usabilidade do seu servidor de Sudoku distribuído.
 
 Citations:
+
+
+descrever como os o servidorweb foi desenvido
