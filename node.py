@@ -160,14 +160,14 @@ class Server:
                         if not self.solution_found or not self.solved_event.is_set():
                             if not self.mySodokuQueue.empty():
                                 task = self.mySodokuQueue.get()
-                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou sudoku para resolver")
                             elif len(self.task_list) > 0:
                                 # pegar o trabalho do outro nó
                                 task = self.task_list.popitem()[1]
-                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou task de outro nó")
@@ -217,7 +217,7 @@ class Server:
                         # ver se tem tarefas na fila
                         if not self.mySodokuQueue.empty:
                             task = self.mySodokuQueue.get()
-                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                             conn.send(json.dumps(solve).encode())
 
                             self.task_list[conn.getpeername()] = task
@@ -225,7 +225,7 @@ class Server:
                         elif len(self.task_list) > 0:
                             # pegar o trabalho do outro nó
                             task = self.task_list.popitem()[1]
-                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                             conn.send(json.dumps(solve).encode())
                             self.task_list[conn.getpeername()] = task
                             print(f"Enviou task de outro nó")
@@ -250,9 +250,9 @@ class Server:
                             self.network_count = 0
 
                     elif message['command'] == 'solve':
-                        sudoku = message['sudoku']
+                        check_cache = message['cache']
                         # check if the sudoku is in the cache
-                        check_cache = str(sudoku)
+                        check_cache = pickle.dumps(check_cache)
                         if check_cache in self.sudoku_cache:
                             print(f"Enviando sudoku salvo em cache")
                             response = {"command": "solution", "sudoku": self.sudoku_cache[check_cache], "sudokuId": message['sudokuId'], "solution": True}
@@ -294,7 +294,7 @@ class Server:
                             print(f"Enviando sudoku para resolver")
                             
                             task = self.mySodokuQueue.get()
-                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}                            
+                            solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}                            
                             conn.send(json.dumps(solve).encode())
 
                             self.task_list[conn.getpeername()] = task
@@ -303,7 +303,7 @@ class Server:
                             if len(self.task_list) > 1:
                                 # pegar o trabalho do outro nó
                                 task = self.task_list.popitem()[1]
-                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                                 conn.send(json.dumps(solve).encode())
                                 self.task_list[conn.getpeername()] = task
                                 print(f"Enviou task de outro nó")
@@ -325,7 +325,7 @@ class Server:
                                 for node in self.connection:
                                     if node not in self.task_list.keys():
                                         task = self.mySodokuQueue.get()
-                                        solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id}
+                                        solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
                                         node.send(json.dumps(solve).encode())
                                         self.task_list[node.getpeername()] = task
 
