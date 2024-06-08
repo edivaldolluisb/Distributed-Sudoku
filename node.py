@@ -155,22 +155,7 @@ class Server:
                         # imprime a lista de conexões atualizada
                         print(f'this node connections: {self.bind_connections}')
 
-                        # ver se estou a resolver um puzzle no momento 
-                        time.sleep(0.5) # FIXME: verificar a abordagem de tempo
-                        if not self.solution_found or not self.solved_event.is_set():
-                            if not self.mySodokuQueue.empty():
-                                task = self.mySodokuQueue.get()
-                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
-                                conn.send(json.dumps(solve).encode())
-                                self.task_list[conn.getpeername()] = task
-                                print(f"Enviou sudoku para resolver")
-                            elif len(self.task_list) > 0:
-                                # pegar o trabalho do outro nó
-                                task = self.task_list.popitem()[1]
-                                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
-                                conn.send(json.dumps(solve).encode())
-                                self.task_list[conn.getpeername()] = task
-                                print(f"Enviou task de outro nó")
+                        self.pool.submit(self.send_solve_on_join, conn)
                 
                         logging.info(f"{self.myip}:{self._port} connected to {addr}")
 
@@ -654,7 +639,23 @@ class Server:
 
                     self.close_connection(node)
 
-
+    def send_solve_on_join(self, conn):
+        # ver se estou a resolver um puzzle no momento 
+        time.sleep(0.5) # FIXME: verificar a abordagem de tempo
+        if not self.solution_found or not self.solved_event.is_set():
+            if not self.mySodokuQueue.empty():
+                task = self.mySodokuQueue.get()
+                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
+                conn.send(json.dumps(solve).encode())
+                self.task_list[conn.getpeername()] = task
+                print(f"Enviou sudoku para resolver")
+            elif len(self.task_list) > 0:
+                # pegar o trabalho do outro nó
+                task = self.task_list.popitem()[1]
+                solve = {"command": "solve", "sudoku": task, "sudokuId": self.current_sudoku_id, "cache": self.mySodokuGrid.grid}
+                conn.send(json.dumps(solve).encode())
+                self.task_list[conn.getpeername()] = task
+                print(f"Enviou task de outro nó")
 
 
     def close_connection(self, conn):
