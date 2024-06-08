@@ -17,7 +17,7 @@ from HttpServer import sudokuHTTP
 
 from sudoku import Sudoku
 
-import json
+import json, pickle
 
 # logging config 
 logging.basicConfig(filename=f"{sys.argv[0]}.log", level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -32,7 +32,7 @@ class Server:
         self._host = host
         self._port = port
         self._http_port = httpport
-        self._handicap = handicap * 0.01 # 0.001
+        self._handicap = handicap * 0.001 # 0.001
         self.connect_to = connect_port
         self.myip = self.get_my_ip()
 
@@ -67,6 +67,7 @@ class Server:
         self.network_cache = {}
         self.keep_alive_nodes = {}
         self.task_list = {} # peer: task
+        self.sudoku_cache = {} # cache for the sudoku
 
 
         # threading solved event
@@ -120,7 +121,7 @@ class Server:
                 try:
                     message = json.loads(data.decode())
                     print(f'received message: {message}')
-                    
+
                     self.keep_alive_nodes[conn] = True # set connection to true
 
                     if message['command'] == 'join':
@@ -249,6 +250,14 @@ class Server:
                             self.network_count = 0
 
                     elif message['command'] == 'solve':
+                        sudoku = message['sudoku']
+                        # check if the sudoku is in the cache
+                        check_cache = str(sudoku)
+                        if check_cache in self.sudoku_cache:
+                            print(f"Enviando sudoku salvo em cache")
+                            response = {"command": "solution", "sudoku": self.sudoku_cache[check_cache], "sudokuId": message['sudokuId'], "solution": True}
+                            conn.send(json.dumps(response).encode())
+                            return
 
                         # store the sudoku id
                         sudoku_id = message['sudokuId']
@@ -264,7 +273,7 @@ class Server:
                         
                         solved = message['solution']
                         solvedId = message['sudokuId']
-                        print(f"Recebido solução: {solved}")
+                        print(f"Recebido solução: {solved} found {self.solution_found}")
 
 
 
@@ -272,7 +281,7 @@ class Server:
                         if conn.getpeername() in self.task_list:
                             self.task_list.pop(conn.getpeername())
 
-                        if solved and not self.solution_found and self.sudokuIds.get(solvedId) is False:
+                        if solved and not self.solution_found and self.sudokuIds.get(solvedId) is False or self.solved_event.is_set() is False:
                             # atualizar o sudoku com a solução
                             self.mySodokuGrid.update_sudoku(message['sudoku'])
                             self.solution_found = True
@@ -435,6 +444,18 @@ class Server:
                 self.sudokuIds[sudokuId] = False
                 self.mySodokuGrid = Sudoku(sudokuToSolve, base_delay=self._handicap)
 
+                check_cache = pickle.dumps(sudokuToSolve)
+                # check_cache = str(sudokuToSolve)
+                # verificar se o sudoku já foi resolvido
+                if check_cache not in self.sudoku_cache:
+                    self.sudoku_cache[check_cache] = []
+                else:
+                    print("Sudoku salvo em cache")
+                    self.solved += 1
+                    self.sudokuIds.pop(sudokuId)
+
+                    return self.sudoku_cache[check_cache]
+
                 # # generate puzzles
                 puzzles = self.mySodokuGrid.generate_puzzles()
 
@@ -468,6 +489,9 @@ class Server:
                 for node in self.connection:
                     stop = {"command": "stop", "sudokuId": self.current_sudoku_id}
                     node.send(json.dumps(stop).encode())
+
+                # adiocioar o sudoku ao cache
+                self.sudoku_cache[check_cache] = self.mySodokuGrid.grid
                      
 
                 # clean the queue for this task dict
