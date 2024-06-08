@@ -120,6 +120,8 @@ class Server:
                 try:
                     message = json.loads(data.decode())
                     print(f'received message: {message}')
+                    
+                    self.keep_alive_nodes[conn] = True # set connection to true
 
                     if message['command'] == 'join':
                         # add the connection to the bind connections
@@ -596,13 +598,13 @@ class Server:
         """Enviar uma mensagem periodica aos nodes para verificar se ainda estão conectados"""
 
         while True: 
-            print("Checking bros ...")
             
             # skip if im alone
             if len(self.connection) == 0:
                 time.sleep(5)
                 continue
 
+            print("Checking bros ...")
             for conn in self.connection:
                 if conn != self.sock:
                     message = {"command": "keep_alive",
@@ -622,11 +624,12 @@ class Server:
             for node, value in self.keep_alive_nodes.items():
                 if value is False:
                     print(f"Conexão perdida com {node}")
-                    self.close_connection(node)
-
                     # remove it from the network
                     peer = self.bind_connections[node.getpeername()]
                     self.network.pop(f"{peer[0]}:{peer[1]}")
+
+                    self.close_connection(node)
+
 
 
 

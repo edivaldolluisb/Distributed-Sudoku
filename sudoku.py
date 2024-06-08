@@ -268,25 +268,19 @@ class Sudoku:
     
 
     def solve_sudoku(self):
-        # sudoku = Sudoku(self.grid)
         if self.check():
             return True
         
         row, col = self.find_next_empty()
 
-        # if row is None:
-        #     return True
 
         for guess in range(1, 10):  # posteriormente, mudar para possible_numbers    
-           
-            # TODO: poderar usar a função check_is_valid do professor
+  
             if row is not None and col is not None:
-                # if self.is_valid(self.grid, guess, row, col):
                 if self.check_is_valid(row, col, guess):
                     self.grid[row][col] = guess 
 
                     if self.solve_sudoku():
-                        # print('achou', guess, row, col)
                         return True
 
                 self.grid[row][col] = 0
@@ -316,54 +310,4 @@ if __name__ == "__main__":
     else:
         print("Sudoku is incorrect! Please check your solution.")
 
-    # sudoku.update_cell(0, 0, 2)
-    # sudoku.update_cell(0, 1, 3)
-    # sudoku.update_cell(0, 3, 4)
-    # print(sudoku)
-
-    # generate_puzzles
-    # p_puzzles = sudoku.generate_puzzles()
-    # print(len(p_puzzles))
-    # for p in p_puzzles:
-    #     pprint(p)
-    #     newpuzzle = Sudoku(p[1])
-    #     r, c = p[0]
-    #     value = newpuzzle.get_cell(r, c)
-    #     print(value)
-    #     print()
-
-    # print(sudoku)
-
-    # testing solve_sudoku
-    # starttime = time.time()
-    # print(sudoku.solve_sudoku())
-    # print("Time taken: ", time.time() - starttime)
-    # print(sudoku)
-
-    # # testing solving a line
-    # print(sudoku.solve_line(7))
-    # print(sudoku)
-    # print(sudoku.solve_line(8))
-    # print(sudoku)
-    # print(sudoku.get_check_count())
-
-    # # testing generate_puzzles
-    # p_puzzles = sudoku.generate_puzzles()
-    # print(p_puzzles, len(p_puzzles))
-
-    # last time recorded: 9.760859489440918
-
-    sudoku = Sudoku(
-        [[1, 6, 3, 8, 9, 2, 7, 5, 4], 
-         [8, 5, 2, 7, 4, 1, 9, 6, 3], 
-         [7, 4, 9, 5, 3, 6, 2, 8, 1], 
-         [9, 8, 7, 2, 5, 4, 3, 1, 6], 
-         [5, 2, 6, 1, 7, 3, 4, 9, 8], 
-         [3, 1, 4, 0, 6, 8, 5, 7, 2], 
-         [6, 0, 0, 4, 2, 5, 8, 3, 7], 
-         [4, 7, 8, 3, 1, 9, 6, 2, 5], 
-         [2, 3, 5, 0, 0, 7, 1, 4, 9]]
-    )
-    
-    # print(sudoku.solve_sudoku())
-    # print(sudoku)
+ 
