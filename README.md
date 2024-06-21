@@ -9,7 +9,7 @@ The algorithm works as follows:
 1. **Start**: When a node connects to the server, it can request a Sudoku to solve or send a Sudoku to be solved by other nodes.
 
 2. **Sudoku Solving**: If a node receives a Sudoku to solve, it tries to solve the problem locally. Otherwise, it divides the Sudoku into smaller subproblems and sends them to other nodes to solve.
-
+  ![Flow image](./flow.pdf)
 3. **Node Communication**: Nodes communicate through JSON messages containing specific commands, such as `solve`, `solution`, `keep_alive`, etc. These messages are sent via TCP/IP sockets.
 
 4. **Solution Verification**: Once a solution is found, the node sends it back to the requester. The node that requested the solution verifies if the solution is valid and then informs the other nodes so they can update their records.
