@@ -9,7 +9,9 @@ The algorithm works as follows:
 1. **Start**: When a node connects to the p2p network, it receives a task if there is any at the instant it joins, or when a node asks to solve a task.
 
 2. **Sudoku Solving**: If a node receives a Sudoku to solve, it divides the problems, and sends a message to the other nodes asking them to solve. If the other nodes agree to solve the node sends them the task.
-  ![Flow image]([https://github.com/edivaldolluisb/Distributed-Sudoku/blob/main/flow.pdf](https://github.com/edivaldolluisb/Distributed-Sudoku/blob/main/flow.png))
+    
+![Flow image](https://github.com/edivaldolluisb/Distributed-Sudoku/blob/main/flow.png)
+
 3. **Node Communication**: Nodes communicate through JSON messages containing specific commands, such as `solve`, `solution`, `keep_alive`, etc. These messages are sent via TCP/IP sockets.
 
 4. **Solution Verification**: Once a solution is found, the node sends it back to the requester. The node that requested the solution verifies if the solution is valid and then informs the other nodes so they can update their records.
